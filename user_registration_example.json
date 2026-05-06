@@ -1,0 +1,9 @@
+{
+  "name": "Juan Pérez",
+  "username": "juanperez",
+  "documentType": "Cédula de ciudadanía",
+  "documentNumber": "1234567890",
+  "email": "juan.perez@email.com",
+  "phone": "+57 300 123 4567",
+  "password": "mi_contraseña_segura"
+}

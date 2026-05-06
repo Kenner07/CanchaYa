@@ -1,0 +1,9 @@
+{
+  "name": "Ejemplo de datos de registro",
+  "username": "usuario_ejemplo",
+  "documentType": "Cédula de ciudadanía",
+  "documentNumber": "1234567890",
+  "email": "usuario@ejemplo.com",
+  "phone": "+57 300 123 4567",
+  "password": "contraseña_segura"
+}
