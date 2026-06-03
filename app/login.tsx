@@ -1,23 +1,44 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
 import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const getApiBaseUrl = () => {
+    const hostUri =
+      Constants.expoConfig?.hostUri ||
+      (Constants as unknown as { manifest?: { debuggerHost?: string } })
+        .manifest?.debuggerHost;
+
+    if (Platform.OS === "android") {
+      return "http://10.0.2.2:3001";
+    }
+
+    if (hostUri) {
+      return `http://${hostUri.split(":")[0]}:3001`;
+    }
+
+    return "http://localhost:3001";
+  };
+
+  const API_URL = getApiBaseUrl();
 
   const handleCreateAccount = () => {
     router.push("/register");
@@ -33,54 +54,57 @@ export default function LoginScreen() {
     }
 
     try {
-      const registrationFilePath =
-        FileSystem.documentDirectory + "registration_data.json";
-      const savedData = await FileSystem.readAsStringAsync(
-        registrationFilePath,
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Credenciales inválidas.");
+      }
+
+      const sessionFilePath = FileSystem.documentDirectory + "auth_user.json";
+      await FileSystem.writeAsStringAsync(
+        sessionFilePath,
+        JSON.stringify(data.user),
         {
           encoding: FileSystem.EncodingType.UTF8,
         },
       );
 
-      const parsed = JSON.parse(savedData);
-
-      if (parsed.email === email && parsed.password === password) {
-        router.replace("/");
-      } else {
-        Alert.alert(
-          "Credenciales inválidas",
-          "El correo o la contraseña no coinciden.",
-        );
-      }
+      Alert.alert("Bienvenido", data.message || "Inicio de sesión correcto.", [
+        { text: "OK", onPress: () => router.replace("/") },
+      ]);
     } catch (error) {
       console.error(error);
+
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No se pudo conectar",
+          "Verifica que la API esté corriendo en el puerto 3001 y que tu dispositivo pueda alcanzarla.",
+        );
+        return;
+      }
+
       Alert.alert(
         "Error",
-        "No hay datos de registro guardados o no se pudo leer el archivo.",
+        error instanceof Error ? error.message : "No se pudo iniciar sesión.",
       );
     }
   };
 
-  const handleShowSavedData = async () => {
-    try {
-      const registrationFilePath =
-        FileSystem.documentDirectory + "registration_data.json";
-      const savedData = await FileSystem.readAsStringAsync(
-        registrationFilePath,
-        {
-          encoding: FileSystem.EncodingType.UTF8,
-        },
-      );
-
-      Alert.alert(
-        "Datos Guardados",
-        `Datos del último registro:\n\n${savedData}`,
-        [{ text: "OK" }],
-      );
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Sin Datos", "No hay datos de registro guardados.");
-    }
+  const handleShowSavedData = () => {
+    Alert.alert(
+      "Información",
+      "Ahora la validación se realiza contra la base de datos. Puedes usar tu correo y contraseña registrados.",
+      [{ text: "OK" }],
+    );
   };
 
   return (

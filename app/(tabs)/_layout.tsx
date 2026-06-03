@@ -3,11 +3,8 @@ import React from "react";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
@@ -16,11 +13,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: "#FFD700",
         tabBarInactiveTintColor: "#FFFFFF",
         tabBarStyle: {
-          backgroundColor: "#000",
-          borderTopColor: "rgba(255,255,255,0.1)",
-          height: 72,
-          paddingBottom: 8,
-          paddingTop: 8,
+          display: "none",
         },
         tabBarLabelStyle: {
           fontSize: 12,

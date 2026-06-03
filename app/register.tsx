@@ -1,17 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system/legacy";
+import Constants from "expo-constants";
 import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 const documentOptions = [
@@ -33,8 +34,24 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const registrationFilePath =
-    FileSystem.documentDirectory + "registration_data.json";
+  const getApiBaseUrl = () => {
+    const hostUri =
+      Constants.expoConfig?.hostUri ||
+      (Constants as unknown as { manifest?: { debuggerHost?: string } }).manifest
+        ?.debuggerHost;
+
+    if (Platform.OS === "android") {
+      return "http://10.0.2.2:3001";
+    }
+
+    if (hostUri) {
+      return `http://${hostUri.split(":")[0]}:3001`;
+    }
+
+    return "http://localhost:3001";
+  };
+
+  const API_URL = getApiBaseUrl();
 
   const handleSignIn = () => {
     router.push("/login");
@@ -46,34 +63,47 @@ export default function RegisterScreen() {
       return;
     }
 
-    const userData = {
-      name,
-      username,
-      documentType,
-      documentNumber,
-      email,
-      phone,
-      password,
-    };
-
     try {
-      const jsonData = JSON.stringify(userData, null, 2);
-
-      // Guardar en archivo del sistema de archivos
-      await FileSystem.writeAsStringAsync(registrationFilePath, jsonData, {
-        encoding: FileSystem.EncodingType.UTF8,
+      const response = await fetch(`${API_URL}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          documentNumber,
+          email,
+          phone,
+          password,
+        }),
       });
 
-      console.log("Datos guardados en JSON:", jsonData);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo registrar el usuario.");
+      }
 
       Alert.alert(
         "Registrado",
-        `Tus datos se guardaron correctamente en el almacenamiento local.\n\nDatos:\n${jsonData}`,
+        data.message || "Usuario registrado correctamente.",
         [{ text: "OK", onPress: () => router.push("/login") }],
       );
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "No se pudo guardar el registro.");
+
+      if (error instanceof TypeError && error.message.includes("Network request failed")) {
+        Alert.alert(
+          "No se pudo conectar",
+          "Verifica que la API esté corriendo en el puerto 3001 y que tu dispositivo pueda alcanzarla.",
+        );
+        return;
+      }
+
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el registro.",
+      );
     }
   };
 
