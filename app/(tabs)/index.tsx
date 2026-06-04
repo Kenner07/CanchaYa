@@ -1,70 +1,49 @@
+import {
+  clearSession,
+  getApiBaseUrl,
+  readSessionUser,
+} from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
-import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ImageBackground,
-  Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { styles } from "./home.styles";
+import { styles } from "../styles/home.styles";
 
 export default function HomeScreen() {
   const router = useRouter();
   const [name, setName] = useState("Jugador");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [suggestedFields, setSuggestedFields] = useState([
-    {
-      id: "la-favela",
-      name: "La Favela",
-      rating: "4.5",
-      distance: "1.2 km",
-      status: "Disponible ahora",
-      image: require("@/assets/images/fondo.png"),
-      latitude: 10.39988,
-      longitude: -75.48149,
-    },
-    {
-      id: "la-canchita",
-      name: "La canchita",
-      rating: "3.5",
-      distance: "1.0 km",
-      status: "Disponible ahora",
-      image: require("@/assets/images/ss.png"),
-      latitude: 10.40207,
-      longitude: -75.48227,
-    },
-  ]);
-
-  const getApiBaseUrl = () => {
-    const hostUri =
-      Constants.expoConfig?.hostUri ||
-      (Constants as unknown as { manifest?: { debuggerHost?: string } })
-        .manifest?.debuggerHost;
-
-    if (Platform.OS === "android") {
-      return "http://10.0.2.2:3001";
-    }
-
-    if (hostUri) {
-      return `http://${hostUri.split(":")[0]}:3001`;
-    }
-
-    return "http://localhost:3001";
-  };
+  const [suggestedFields, setSuggestedFields] = useState<any[]>([]);
 
   const API_URL = getApiBaseUrl();
+  const API_TIMEOUT_MS = 15000;
+
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
 
   useEffect(() => {
     const loadCanchas = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/canchas`);
+        const response = await fetchWithTimeout(`${API_URL}/api/canchas`);
         const data = await response.json();
 
         if (
@@ -80,7 +59,8 @@ export default function HomeScreen() {
               address: field.direccion_cancha || null,
               distance: "1.2 km",
               status: "Disponible ahora",
-              image: require("@/assets/images/fondo.png"),
+              image: field.imagen_url ? { uri: field.imagen_url } : null,
+              imageUrl: field.imagen_url || null,
               latitude: Number(field.latitud),
               longitude: Number(field.longitud),
               horario: field.horario ?? "null",
@@ -92,6 +72,7 @@ export default function HomeScreen() {
         }
       } catch (error) {
         console.warn("No se pudieron cargar las canchas desde la API:", error);
+        setSuggestedFields([]);
       }
     };
 
@@ -101,11 +82,13 @@ export default function HomeScreen() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const sessionFilePath = FileSystem.documentDirectory + "auth_user.json";
-        const savedUser = await FileSystem.readAsStringAsync(sessionFilePath, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        const parsed = JSON.parse(savedUser);
+        const parsed = await readSessionUser();
+
+        if (!parsed) {
+          setName("Jugador");
+          return;
+        }
+
         setName(parsed.name || parsed.email || "Jugador");
       } catch (error) {
         console.warn("No se pudo leer la sesión guardada:", error);
@@ -118,8 +101,7 @@ export default function HomeScreen() {
 
   const handleLogout = async () => {
     try {
-      const sessionFilePath = FileSystem.documentDirectory + "auth_user.json";
-      await FileSystem.deleteAsync(sessionFilePath);
+      await clearSession();
     } catch (error) {
       console.warn("No se pudo limpiar la sesión:", error);
     } finally {
@@ -139,7 +121,7 @@ export default function HomeScreen() {
               <Text style={styles.brandText}>CanchaYa</Text>
             </View>
             <Text style={styles.greeting}>¡Hola, {name}!</Text>
-            <Text style={styles.heading}>Busca tu Cancha Cercana</Text>
+            <Text style={styles.heading}>Busca tu cancha cercana</Text>
           </View>
 
           <View style={styles.topIcons}>
@@ -266,6 +248,7 @@ export default function HomeScreen() {
                         horario: field.horario ?? "null",
                         superficie: field.superficie ?? "null",
                         capacidad: field.capacidad ?? "null",
+                        imageUrl: field.imageUrl ?? "null",
                       },
                     })
                   }

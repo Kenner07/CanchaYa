@@ -1,41 +1,38 @@
+import { getApiBaseUrl, getSessionFilePath } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
 import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    Alert,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const API_TIMEOUT_MS = 15000;
 
-  const getApiBaseUrl = () => {
-    const hostUri =
-      Constants.expoConfig?.hostUri ||
-      (Constants as unknown as { manifest?: { debuggerHost?: string } })
-        .manifest?.debuggerHost;
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-    if (Platform.OS === "android") {
-      return "http://10.0.2.2:3001";
+    try {
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    if (hostUri) {
-      return `http://${hostUri.split(":")[0]}:3001`;
-    }
-
-    return "http://localhost:3001";
   };
 
   const API_URL = getApiBaseUrl();
@@ -54,7 +51,7 @@ export default function LoginScreen() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/login`, {
+      const response = await fetchWithTimeout(`${API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -66,7 +63,7 @@ export default function LoginScreen() {
         throw new Error(data.message || "Credenciales inválidas.");
       }
 
-      const sessionFilePath = FileSystem.documentDirectory + "auth_user.json";
+      const sessionFilePath = getSessionFilePath();
       await FileSystem.writeAsStringAsync(
         sessionFilePath,
         JSON.stringify(data.user),
@@ -75,15 +72,27 @@ export default function LoginScreen() {
         },
       );
 
+      const destination =
+        data.user?.role === "administrador" || data.user?.role === "gerente"
+          ? "/admin-home"
+          : "/";
+
       Alert.alert("Bienvenido", data.message || "Inicio de sesión correcto.", [
-        { text: "OK", onPress: () => router.replace("/") },
+        { text: "OK", onPress: () => router.replace(destination) },
       ]);
     } catch (error) {
       console.error(error);
 
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      const isAbortError =
+        (error as { name?: string } | null)?.name === "AbortError";
+
       if (
-        error instanceof TypeError &&
-        error.message.includes("Network request failed")
+        (error instanceof TypeError &&
+          (message.includes("network request failed") ||
+            message.includes("timed out") ||
+            message.includes("aborted"))) ||
+        isAbortError
       ) {
         Alert.alert(
           "No se pudo conectar",

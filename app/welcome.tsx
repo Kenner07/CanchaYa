@@ -2,16 +2,13 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Dimensions,
     ImageBackground,
     Pressable,
-    SafeAreaView,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-
-const { width, height } = Dimensions.get("window");
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   const router = useRouter();

@@ -1,19 +1,18 @@
+import { getApiBaseUrl } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    Alert,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const documentOptions = [
   "Cédula de ciudadanía",
@@ -25,6 +24,21 @@ const documentOptions = [
 export default function RegisterScreen() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const API_TIMEOUT_MS = 15000;
+
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
   const [username, setUsername] = useState("");
   const [documentType, setDocumentType] = useState("");
   const [documentOpen, setDocumentOpen] = useState(false);
@@ -33,23 +47,6 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  const getApiBaseUrl = () => {
-    const hostUri =
-      Constants.expoConfig?.hostUri ||
-      (Constants as unknown as { manifest?: { debuggerHost?: string } }).manifest
-        ?.debuggerHost;
-
-    if (Platform.OS === "android") {
-      return "http://10.0.2.2:3001";
-    }
-
-    if (hostUri) {
-      return `http://${hostUri.split(":")[0]}:3001`;
-    }
-
-    return "http://localhost:3001";
-  };
 
   const API_URL = getApiBaseUrl();
 
@@ -64,7 +61,7 @@ export default function RegisterScreen() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/register`, {
+      const response = await fetchWithTimeout(`${API_URL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,7 +87,17 @@ export default function RegisterScreen() {
     } catch (error) {
       console.error(error);
 
-      if (error instanceof TypeError && error.message.includes("Network request failed")) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      const isAbortError =
+        (error as { name?: string } | null)?.name === "AbortError";
+
+      if (
+        (error instanceof TypeError &&
+          (message.includes("network request failed") ||
+            message.includes("timed out") ||
+            message.includes("aborted"))) ||
+        isAbortError
+      ) {
         Alert.alert(
           "No se pudo conectar",
           "Verifica que la API esté corriendo en el puerto 3001 y que tu dispositivo pueda alcanzarla.",

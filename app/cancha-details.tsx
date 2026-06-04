@@ -1,19 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
-    Image,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+
+export const options = {
+  headerShown: true,
+};
 
 export default function CanchaDetailsScreen() {
   const router = useRouter();
+  const [previewVisible, setPreviewVisible] = useState(false);
   const params = useLocalSearchParams<{
     id?: string;
     name?: string;
@@ -27,6 +33,7 @@ export default function CanchaDetailsScreen() {
     horario?: string;
     superficie?: string;
     capacidad?: string;
+    imageUrl?: string;
   }>();
 
   const latitude =
@@ -38,17 +45,34 @@ export default function CanchaDetailsScreen() {
       ? Number(params.longitude)
       : null;
 
+  const horarios =
+    params.horario && params.horario !== "null"
+      ? params.horario
+          .split(";")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [];
+
+  const formatPrice = (value?: string) => {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      return "Precio no disponible";
+    }
+
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0,
+    }).format(numericValue);
+  };
+
+  const imageSource =
+    params.imageUrl && params.imageUrl !== "null"
+      ? { uri: params.imageUrl }
+      : require("@/assets/images/fondo.png");
+
   const infoRows = [
-    { label: "Nombre", value: params.name || "null" },
-    {
-      label: "Dirección",
-      value:
-        params.address && params.address !== "null" ? params.address : "null",
-    },
-    {
-      label: "Valoración",
-      value: params.rating && params.rating !== "null" ? params.rating : "null",
-    },
     {
       label: "Distancia",
       value:
@@ -59,15 +83,6 @@ export default function CanchaDetailsScreen() {
     {
       label: "Estado",
       value: params.status && params.status !== "null" ? params.status : "null",
-    },
-    {
-      label: "Precio",
-      value: params.precio && params.precio !== "null" ? params.precio : "null",
-    },
-    {
-      label: "Horario",
-      value:
-        params.horario && params.horario !== "null" ? params.horario : "null",
     },
     {
       label: "Superficie",
@@ -88,18 +103,23 @@ export default function CanchaDetailsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.headerRow}>
+        <View style={styles.topActions}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </Pressable>
-          <Text style={styles.title}>Detalle de la cancha</Text>
         </View>
 
         <View style={styles.card}>
-          <Image
-            source={require("@/assets/images/fondo.png")}
-            style={styles.image}
-          />
+          <Pressable onPress={() => setPreviewVisible(true)}>
+            <View style={styles.imageWrapper}>
+              <Image source={imageSource} style={styles.image} />
+              <View style={styles.priceChip}>
+                <Text style={styles.priceChipText}>
+                  {formatPrice(params.precio)}
+                </Text>
+              </View>
+            </View>
+          </Pressable>
           <View style={styles.cardBody}>
             <View style={styles.badgeRow}>
               <View style={styles.statusChip}>
@@ -130,6 +150,23 @@ export default function CanchaDetailsScreen() {
           ))}
         </View>
 
+        <View style={styles.scheduleCard}>
+          <Text style={styles.sectionTitle}>Horarios</Text>
+          {horarios.length > 0 ? (
+            <View style={styles.scheduleList}>
+              {horarios.map((item) => (
+                <View key={item} style={styles.scheduleChip}>
+                  <Text style={styles.scheduleChipText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyScheduleText}>
+              No hay horarios disponibles.
+            </Text>
+          )}
+        </View>
+
         <View style={styles.mapCard}>
           <Text style={styles.mapTitle}>Ubicación en Google Maps</Text>
           {latitude !== null && longitude !== null ? (
@@ -157,6 +194,32 @@ export default function CanchaDetailsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={previewVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewVisible(false)}
+      >
+        <Pressable
+          style={styles.previewBackdrop}
+          onPress={() => setPreviewVisible(false)}
+        >
+          <View style={styles.previewContainer}>
+            <Pressable
+              style={styles.previewCloseButton}
+              onPress={() => setPreviewVisible(false)}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </Pressable>
+            <Image
+              source={imageSource}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -164,23 +227,84 @@ export default function CanchaDetailsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000000" },
   content: { padding: 18, paddingBottom: 36 },
+  topActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
   backButton: {
-    marginRight: 12,
     padding: 8,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.12)",
   },
+  homeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  homeButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   title: { color: "#fff", fontSize: 22, fontWeight: "800" },
   card: {
-    backgroundColor: "#111111",
-    borderRadius: 20,
-    overflow: "hidden",
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    overflow: "visible",
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
+  imageWrapper: { position: "relative" },
   image: { width: "100%", height: 180 },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  previewContainer: {
+    width: "100%",
+    maxWidth: 420,
+    alignItems: "center",
+  },
+  previewCloseButton: {
+    alignSelf: "flex-end",
+    marginBottom: 8,
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  previewImage: {
+    width: "100%",
+    height: 360,
+    borderRadius: 18,
+    backgroundColor: "#111111",
+  },
+  priceChip: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.35)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  priceChipText: {
+    color: "#FFD700",
+    fontSize: 12,
+    fontWeight: "800",
+  },
   cardBody: { paddingHorizontal: 14, paddingBottom: 14 },
   badgeRow: {
     flexDirection: "row",
@@ -211,18 +335,54 @@ const styles = StyleSheet.create({
   cardTitle: { color: "#fff", fontSize: 22, fontWeight: "800" },
   cardSubtitle: { color: "#C7D6EA", fontSize: 14, marginTop: 4 },
   infoBox: {
-    backgroundColor: "#111111",
-    borderRadius: 20,
+    backgroundColor: "transparent",
+    borderRadius: 0,
     padding: 14,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderWidth: 0,
+    borderColor: "transparent",
+  },
+  scheduleCard: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 0,
+    borderColor: "transparent",
+  },
+  sectionTitle: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  scheduleList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  scheduleChip: {
+    backgroundColor: "rgba(255, 215, 0, 0.10)",
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  scheduleChipText: {
+    color: "#FFD700",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  emptyScheduleText: {
+    color: "#C7D6EA",
+    fontSize: 13,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomWidth: 0,
+    borderBottomColor: "transparent",
     paddingVertical: 8,
   },
   label: { color: "#9FB4CC", fontSize: 14, fontWeight: "600", flex: 1 },
@@ -234,11 +394,11 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   mapCard: {
-    backgroundColor: "#111111",
-    borderRadius: 20,
+    backgroundColor: "transparent",
+    borderRadius: 0,
     padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   mapTitle: {
     color: "#fff",
