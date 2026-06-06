@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "name": "Juan Pérez",
+    "email": "juan.perez@email.com",
+    "phone": "+57 300 123 4567",
+    "password": "$2b$10$hA8np4vIYe3OF2F3ABfUh.6GqDHkGAGicLFNIVjGuj3g3dNgPr51m",
+    "role": "deportista",
+    "source": "fallback"
+  }
+]

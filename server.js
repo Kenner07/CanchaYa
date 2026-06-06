@@ -1,46 +1,61 @@
 const path = require("path");
+const fs = require("fs/promises");
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
-const mysql = require("mysql2/promise");
+const { getPool } = require("./config/db");
+const reservasRoutes = require("./routes/reservas");
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
 const HOST = process.env.API_HOST || "0.0.0.0";
 
-const DB_HOST = process.env.DB_HOST || "localhost";
-const DB_PORT = Number(process.env.DB_PORT || 3306);
-const DB_USER = process.env.DB_USER || "root";
-const DB_PASSWORD = process.env.DB_PASSWORD || "";
-const DB_NAME = process.env.DB_NAME || "busqueda_canchas";
+const FALLBACK_USERS_FILE = path.join(__dirname, "bd", "users.json");
 
 app.use(cors());
 app.use(express.json());
 app.use("/assets", express.static(path.join(__dirname, "assets")));
 
-let pool;
+async function readFallbackUsers() {
+  try {
+    const raw = await fs.readFile(FALLBACK_USERS_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn("No se pudieron cargar usuarios de respaldo:", error.message);
+    return [];
+  }
+}
 
-async function getPool() {
-  if (!pool) {
-    pool = mysql.createPool({
-      host: DB_HOST,
-      port: DB_PORT,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      database: DB_NAME,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-      charset: "utf8mb4",
-    });
+async function authenticateFallbackUser(email, password) {
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  const users = await readFallbackUsers();
+  const user = users.find(
+    (item) =>
+      String(item.email || "")
+        .trim()
+        .toLowerCase() === normalizedEmail,
+  );
+
+  if (!user) {
+    return null;
   }
 
-  return pool;
+  const storedPassword = String(user.password || "");
+  const passwordMatches = storedPassword.startsWith("$2")
+    ? await bcrypt.compare(password, storedPassword)
+    : storedPassword === String(password);
+
+  return passwordMatches ? user : null;
 }
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, message: "API de CanchaYa activa" });
 });
+
+app.use("/api/reservas", reservasRoutes);
 
 app.get("/api/canchas", async (req, res) => {
   try {
@@ -144,9 +159,9 @@ app.post("/api/register", async (req, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
+  const { email, password } = req.body || {};
 
+  try {
     if (!email || !password) {
       return res
         .status(400)
@@ -180,6 +195,23 @@ app.post("/api/login", async (req, res) => {
     }
 
     if (!user) {
+      const fallbackUser = await authenticateFallbackUser(email, password);
+
+      if (fallbackUser) {
+        return res.json({
+          ok: true,
+          message: "Inicio de sesión correcto.",
+          user: {
+            id: fallbackUser.id,
+            name: fallbackUser.name,
+            email: fallbackUser.email,
+            phone: fallbackUser.phone,
+            role: fallbackUser.role || "deportista",
+            source: fallbackUser.source || "fallback",
+          },
+        });
+      }
+
       return res
         .status(401)
         .json({ ok: false, message: "Correo o contraseña inválidos." });
@@ -237,10 +269,33 @@ app.post("/api/login", async (req, res) => {
       user: userPayload,
     });
   } catch (error) {
-    console.error("Error en /api/login:", error);
-    return res
-      .status(500)
-      .json({ ok: false, message: "No se pudo iniciar sesión." });
+    console.warn(
+      "Login DB falló, intentando respaldo local:",
+      error?.code || error?.message || error,
+    );
+
+    const fallbackUser = await authenticateFallbackUser(email, password);
+
+    if (fallbackUser) {
+      return res.json({
+        ok: true,
+        message: "Inicio de sesión correcto.",
+        user: {
+          id: fallbackUser.id,
+          name: fallbackUser.name,
+          email: fallbackUser.email,
+          phone: fallbackUser.phone,
+          role: fallbackUser.role || "deportista",
+          source: fallbackUser.source || "fallback",
+        },
+      });
+    }
+
+    return res.status(401).json({
+      ok: false,
+      message:
+        "Correo o contraseña inválidos o la base de datos no está disponible.",
+    });
   }
 });
 

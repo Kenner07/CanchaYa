@@ -19,6 +19,15 @@ export default function AdminHomeScreen() {
   const [role, setRole] = useState("gerente");
   const [userId, setUserId] = useState<number | null>(null);
   const [canchas, setCanchas] = useState<any[]>([]);
+  const [reservationsByCancha, setReservationsByCancha] = useState<
+    Record<number, any[]>
+  >({});
+  const [openReservationCanchaId, setOpenReservationCanchaId] = useState<
+    number | null
+  >(null);
+  const [loadingReservations, setLoadingReservations] = useState<
+    Record<number, boolean>
+  >({});
 
   useEffect(() => {
     const loadSession = async () => {
@@ -88,20 +97,178 @@ export default function AdminHomeScreen() {
     }
   };
 
+  const parseDateValue = (value?: string | null) => {
+    if (!value) {
+      return null;
+    }
+
+    const candidate = String(value).trim();
+
+    if (!candidate) {
+      return null;
+    }
+
+    const normalized =
+      candidate.includes("T") || candidate.includes(" ")
+        ? candidate.replace(" ", "T")
+        : `${candidate}T12:00:00`;
+
+    const parsed = new Date(normalized);
+
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const formatDateLabel = (value?: string | null) => {
+    const parsed = parseDateValue(value);
+
+    if (!parsed) {
+      return "Sin fecha";
+    }
+
+    return parsed.toLocaleDateString("es-CO", {
+      weekday: "short",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const formatDateTimeLabel = (value?: string | null) => {
+    const parsed = parseDateValue(value);
+
+    if (!parsed) {
+      return "Sin información de creación";
+    }
+
+    return parsed.toLocaleString("es-CO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const handleUpdateReservaStatus = async (
+    idReserva: number,
+    nextStatus: "confirmada" | "rechazada",
+  ) => {
+    try {
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/reservas/${idReserva}/estado`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado: nextStatus, id_gerente: userId }),
+        },
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo actualizar la reserva.");
+      }
+
+      setReservationsByCancha((prev) => {
+        const nextEntries = Object.entries(prev).map(([canchaId, items]) => [
+          Number(canchaId),
+          (items || []).map((item) =>
+            item.id_reserva === idReserva
+              ? { ...item, estado: nextStatus }
+              : item,
+          ),
+        ]);
+
+        return Object.fromEntries(nextEntries) as Record<number, any[]>;
+      });
+
+      Alert.alert(
+        nextStatus === "confirmada" ? "Reserva aprobada" : "Reserva rechazada",
+        data?.message || "Estado actualizado.",
+      );
+    } catch (error: any) {
+      console.warn("No se pudo actualizar la reserva:", error);
+      Alert.alert("Error", String(error?.message || error));
+    }
+  };
+
+  const handleToggleReservations = async (field: any) => {
+    const idCancha = Number(field?.id_cancha || 0);
+
+    if (!idCancha) {
+      return;
+    }
+
+    if (openReservationCanchaId === idCancha) {
+      setOpenReservationCanchaId(null);
+      return;
+    }
+
+    if (reservationsByCancha[idCancha]) {
+      setOpenReservationCanchaId(idCancha);
+      return;
+    }
+
+    setLoadingReservations((prev) => ({ ...prev, [idCancha]: true }));
+
+    try {
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/reservas/cancha/${idCancha}`,
+      );
+      const rawText = await response.text();
+
+      let data: any = {};
+
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (parseError) {
+        throw new Error(
+          `Respuesta inválida del servidor (${response.status}). Reinicia el backend si sigue ocurriendo.`,
+        );
+      }
+
+      if (!response.ok || !Array.isArray(data.reservas)) {
+        throw new Error(data?.message || "No se pudieron cargar las reservas.");
+      }
+
+      setReservationsByCancha((prev) => ({
+        ...prev,
+        [idCancha]: data.reservas,
+      }));
+      setOpenReservationCanchaId(idCancha);
+    } catch (error) {
+      console.warn("No se pudieron cargar las reservas:", error);
+      Alert.alert(
+        "Error",
+        "No se pudieron cargar las reservas de esta cancha.",
+      );
+    } finally {
+      setLoadingReservations((prev) => ({ ...prev, [idCancha]: false }));
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <View>
+          <View style={styles.headerTextBlock}>
             <Text style={styles.eyebrow}>Panel de administración</Text>
             <Text style={styles.title}>Hola, {name}</Text>
             <Text style={styles.subtitle}>
               Gestiona las canchas publicadas desde aquí.
             </Text>
           </View>
-          <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={18} color="#fff" />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={styles.secondaryHeaderButton}
+              onPress={() => router.push("/")}
+            >
+              <Text style={styles.secondaryHeaderButtonText}>Menú normal</Text>
+            </Pressable>
+            <Pressable style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={18} color="#fff" />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.statsRow}>
@@ -156,18 +323,103 @@ export default function AdminHomeScreen() {
                 <Text style={styles.priceText}>
                   COP {Number(field.precio || 0).toLocaleString("es-CO")}
                 </Text>
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={() =>
-                    Alert.alert(
-                      "Editar",
-                      `Próximamente podrás editar ${field.nombre_cancha}.`,
-                    )
-                  }
-                >
-                  <Text style={styles.actionButtonText}>Editar</Text>
-                </Pressable>
+                <View style={styles.buttonGroup}>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() =>
+                      Alert.alert(
+                        "Editar",
+                        `Próximamente podrás editar ${field.nombre_cancha}.`,
+                      )
+                    }
+                  >
+                    <Text style={styles.actionButtonText}>Editar</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.secondaryActionButton}
+                    onPress={() => handleToggleReservations(field)}
+                  >
+                    <Text style={styles.secondaryActionText}>
+                      Gestionar reservas
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
+
+              {openReservationCanchaId === Number(field.id_cancha) && (
+                <View style={styles.reservationsPanel}>
+                  {loadingReservations[Number(field.id_cancha)] ? (
+                    <Text style={styles.emptyText}>Cargando reservas...</Text>
+                  ) : (reservationsByCancha[Number(field.id_cancha)] || [])
+                      .length > 0 ? (
+                    (reservationsByCancha[Number(field.id_cancha)] || []).map(
+                      (reserva) => (
+                        <View
+                          key={reserva.id_reserva}
+                          style={styles.reservationCard}
+                        >
+                          <Text style={styles.reservationTitle}>
+                            {reserva.nombre_deportista || "Usuario sin nombre"}
+                          </Text>
+                          <Text style={styles.reservationMeta}>
+                            Fecha de reserva: {formatDateLabel(reserva.fecha)} ·{" "}
+                            {reserva.hora_inicio} a {reserva.hora_fin}
+                          </Text>
+                          <Text style={styles.reservationMeta}>
+                            Reservado el:{" "}
+                            {formatDateTimeLabel(reserva.fecha_creacion)}
+                          </Text>
+                          <Text style={styles.reservationMeta}>
+                            Contacto: {reserva.correo || "Sin correo"}
+                          </Text>
+                          <Text style={styles.reservationMeta}>
+                            Teléfono: {reserva.telefono || "Sin teléfono"}
+                          </Text>
+                          <Text style={styles.reservationStatus}>
+                            Estado: {reserva.estado || "pendiente"}
+                          </Text>
+                          {String(
+                            reserva.estado || "pendiente",
+                          ).toLowerCase() === "pendiente" && (
+                            <View style={styles.approvalButtons}>
+                              <Pressable
+                                style={styles.approveButton}
+                                onPress={() =>
+                                  handleUpdateReservaStatus(
+                                    reserva.id_reserva,
+                                    "confirmada",
+                                  )
+                                }
+                              >
+                                <Text style={styles.approveButtonText}>
+                                  Aprobar
+                                </Text>
+                              </Pressable>
+                              <Pressable
+                                style={styles.rejectButton}
+                                onPress={() =>
+                                  handleUpdateReservaStatus(
+                                    reserva.id_reserva,
+                                    "rechazada",
+                                  )
+                                }
+                              >
+                                <Text style={styles.rejectButtonText}>
+                                  Rechazar
+                                </Text>
+                              </Pressable>
+                            </View>
+                          )}
+                        </View>
+                      ),
+                    )
+                  ) : (
+                    <Text style={styles.emptyText}>
+                      No hay reservas registradas para esta cancha.
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         ))}
@@ -180,10 +432,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#060606" },
   content: { padding: 18, paddingBottom: 36 },
   headerRow: {
+    position: "relative",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    flexWrap: "nowrap",
+    columnGap: 10,
+    rowGap: 10,
     marginBottom: 18,
+    paddingRight: 110,
+  },
+  headerTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 6,
   },
   eyebrow: {
     color: "#FFD700",
@@ -192,12 +454,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
-  title: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 6 },
-  subtitle: { color: "rgba(255,255,255,0.72)", marginTop: 4, fontSize: 14 },
+  title: { color: "#fff", fontSize: 26, fontWeight: "800", marginTop: 6 },
+  subtitle: { color: "rgba(255,255,255,0.72)", marginTop: 4, fontSize: 13 },
+  headerActions: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    zIndex: 2,
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
+  },
   logoutButton: {
     padding: 10,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  secondaryHeaderButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  secondaryHeaderButtonText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   statsRow: {
     flexDirection: "row",
@@ -267,6 +554,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 10,
+    gap: 10,
+  },
+  buttonGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 8,
   },
   priceText: { color: "#FFD700", fontSize: 13, fontWeight: "700" },
   actionButton: {
@@ -275,5 +569,72 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
   },
+  secondaryActionButton: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
   actionButtonText: { color: "#000", fontSize: 12, fontWeight: "800" },
+  secondaryActionText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  reservationsPanel: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  reservationCard: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  reservationTitle: { color: "#fff", fontSize: 14, fontWeight: "800" },
+  reservationMeta: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  reservationStatus: {
+    color: "#FFD700",
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "700",
+  },
+  approvalButtons: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  approveButton: {
+    flex: 1,
+    backgroundColor: "rgba(76, 175, 80, 0.18)",
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(76, 175, 80, 0.45)",
+  },
+  approveButtonText: {
+    color: "#B8F2B8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: "rgba(255, 107, 107, 0.14)",
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 107, 0.35)",
+  },
+  rejectButtonText: {
+    color: "#FFC4C4",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  emptyText: { color: "rgba(255,255,255,0.72)", fontSize: 12 },
 });

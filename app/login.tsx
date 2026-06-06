@@ -72,13 +72,8 @@ export default function LoginScreen() {
         },
       );
 
-      const destination =
-        data.user?.role === "administrador" || data.user?.role === "gerente"
-          ? "/admin-home"
-          : "/";
-
       Alert.alert("Bienvenido", data.message || "Inicio de sesión correcto.", [
-        { text: "OK", onPress: () => router.replace(destination) },
+        { text: "OK", onPress: () => router.replace("/") },
       ]);
     } catch (error) {
       console.error(error);

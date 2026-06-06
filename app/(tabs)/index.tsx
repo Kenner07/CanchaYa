@@ -1,8 +1,4 @@
-import {
-  clearSession,
-  getApiBaseUrl,
-  readSessionUser,
-} from "@/utils/api";
+import { clearSession, getApiBaseUrl, readSessionUser } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -13,13 +9,14 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "../styles/home.styles";
 
 export default function HomeScreen() {
   const router = useRouter();
   const [name, setName] = useState("Jugador");
+  const [role, setRole] = useState("deportista");
   const [menuOpen, setMenuOpen] = useState(false);
   const [suggestedFields, setSuggestedFields] = useState<any[]>([]);
 
@@ -90,6 +87,7 @@ export default function HomeScreen() {
         }
 
         setName(parsed.name || parsed.email || "Jugador");
+        setRole(parsed.role || "deportista");
       } catch (error) {
         console.warn("No se pudo leer la sesión guardada:", error);
         setName("Jugador");
@@ -109,11 +107,16 @@ export default function HomeScreen() {
     }
   };
 
+  const handleGoToAdminPanel = () => {
+    setMenuOpen(false);
+    router.push("/admin-home");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerRow}>
-          <View>
+          <View style={styles.headerTextBlock}>
             <View style={styles.brandRow}>
               <View style={styles.brandIcon}>
                 <Ionicons name="football-outline" size={20} color="#4CAF50" />
@@ -125,6 +128,9 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.topIcons}>
+            <Pressable style={styles.searchButton}>
+              <Ionicons name="search" size={22} color="#fff" />
+            </Pressable>
             <View style={styles.avatarContainer}>
               <Pressable
                 style={styles.avatar}
@@ -148,7 +154,24 @@ export default function HomeScreen() {
                     />
                     <Text style={styles.menuItemText}>Perfil</Text>
                   </Pressable>
-                  <View style={styles.menuDivider} />
+                  {(role === "administrador" || role === "gerente") && (
+                    <>
+                      <Pressable
+                        style={styles.menuItem}
+                        onPress={handleGoToAdminPanel}
+                      >
+                        <Ionicons
+                          name="shield-outline"
+                          size={18}
+                          color="#FFD700"
+                        />
+                        <Text style={styles.menuItemText}>
+                          Panel de administración
+                        </Text>
+                      </Pressable>
+                      <View style={styles.menuDivider} />
+                    </>
+                  )}
                   <Pressable style={styles.menuItem} onPress={handleLogout}>
                     <Ionicons
                       name="log-out-outline"
@@ -162,9 +185,6 @@ export default function HomeScreen() {
                 </View>
               )}
             </View>
-            <Pressable style={styles.searchButton}>
-              <Ionicons name="search" size={22} color="#fff" />
-            </Pressable>
           </View>
         </View>
 

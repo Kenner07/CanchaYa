@@ -36,7 +36,7 @@ export const readSessionUser = async () => {
   const sessionFilePath = getSessionFilePath();
   const fileInfo = await FileSystem.getInfoAsync(sessionFilePath);
 
-  if (!fileInfo.exists || !fileInfo.isDirectory) {
+  if (!fileInfo.exists) {
     return null;
   }
 

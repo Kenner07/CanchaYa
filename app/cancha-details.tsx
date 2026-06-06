@@ -1,7 +1,10 @@
+import { getApiBaseUrl, readSessionUser } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -10,8 +13,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export const options = {
   headerShown: true,
@@ -20,6 +23,15 @@ export const options = {
 export default function CanchaDetailsScreen() {
   const router = useRouter();
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [availability, setAvailability] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
   const params = useLocalSearchParams<{
     id?: string;
     name?: string;
@@ -71,6 +83,155 @@ export default function CanchaDetailsScreen() {
     params.imageUrl && params.imageUrl !== "null"
       ? { uri: params.imageUrl }
       : require("@/assets/images/fondo.png");
+
+  const canchaId = Number(params.id || 0);
+  const API_URL = getApiBaseUrl();
+
+  const formatMinutes = (value: number) => {
+    const hours = Math.floor(value / 60)
+      .toString()
+      .padStart(2, "0");
+    const minutes = (value % 60).toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
+  const toMinutes = (time: string) => {
+    const [hours, minutes] = String(time || "00:00")
+      .split(":")
+      .map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const formatDateLocal = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (_event: unknown, date?: Date) => {
+    setShowDatePicker(false);
+
+    if (date) {
+      setSelectedDate(formatDateLocal(date));
+    }
+  };
+
+  const loadAvailability = async () => {
+    if (!canchaId || !selectedDate) {
+      Alert.alert(
+        "Fecha requerida",
+        "Ingresa una fecha válida para consultar horarios.",
+      );
+      return;
+    }
+
+    try {
+      setAvailabilityLoading(true);
+      setSelectedSlot(null);
+      const response = await fetch(
+        `${API_URL}/api/reservas/disponibilidad?id_cancha=${canchaId}&fecha=${selectedDate}`,
+      );
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "No se pudo cargar la disponibilidad.");
+      }
+
+      const now = new Date();
+      const isToday = selectedDate === formatDateLocal(now);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const bloquesFiltrados = (data.bloques || []).map((slot: any) => {
+        const bloquePasado =
+          isToday && toMinutes(slot.hora_inicio) <= currentMinutes;
+
+        return {
+          ...slot,
+          disponible: Boolean(slot.disponible) && !bloquePasado,
+          estado: bloquePasado ? "no disponible" : slot.estado,
+        };
+      });
+
+      setAvailability(bloquesFiltrados);
+
+      if (
+        !bloquesFiltrados.some(
+          (item: { disponible?: boolean }) => item.disponible,
+        )
+      ) {
+        Alert.alert(
+          "Sin disponibilidad",
+          "No hay horarios libres para esta fecha.",
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "No se pudo consultar la disponibilidad.",
+      );
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const handleConfirmReservation = async () => {
+    if (!selectedSlot) {
+      Alert.alert(
+        "Selecciona un horario",
+        "Elige uno de los bloques disponibles para reservar.",
+      );
+      return;
+    }
+
+    const sessionUser = await readSessionUser();
+
+    if (!sessionUser?.id) {
+      Alert.alert("Inicia sesión", "Debes iniciar sesión para reservar.");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+      const horaFin = formatMinutes(toMinutes(selectedSlot.hora_inicio) + 60);
+      const response = await fetch(`${API_URL}/api/reservas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_deportista: sessionUser.id,
+          id_cancha: canchaId,
+          fecha: selectedDate,
+          hora_inicio: selectedSlot.hora_inicio,
+          hora_fin: horaFin,
+          precio_pagado: Number(params.precio || 0),
+          estado: "pendiente",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "No se pudo crear la reserva.");
+      }
+
+      Alert.alert(
+        "Reserva creada",
+        data.message || "Tu reserva quedó registrada.",
+      );
+      setSelectedSlot(null);
+      await loadAvailability();
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "No se pudo crear la reserva.",
+      );
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   const infoRows = [
     {
@@ -138,6 +299,100 @@ export default function CanchaDetailsScreen() {
                 ? params.address
                 : "Dirección no disponible"}
             </Text>
+          </View>
+        </View>
+
+        <View style={styles.bookingCard}>
+          <Text style={styles.sectionTitle}>Reserva rápida</Text>
+          <Text style={styles.helperText}>
+            Elige una fecha y selecciona el bloque que prefieras.
+          </Text>
+
+          <Text style={styles.inputLabel}>Fecha</Text>
+          <Pressable
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#fff" />
+            <Text style={styles.dateButtonText}>{selectedDate}</Text>
+          </Pressable>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={new Date(selectedDate)}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+              minimumDate={new Date()}
+            />
+          )}
+
+          <View style={styles.bookingActions}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.secondaryButtonPressed,
+                availabilityLoading && styles.secondaryButtonDisabled,
+              ]}
+              onPress={loadAvailability}
+              disabled={availabilityLoading}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {availabilityLoading ? "Consultando..." : "Ver disponibilidad"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.reserveButton,
+                pressed && styles.reserveButtonPressed,
+                bookingLoading && styles.reserveButtonDisabled,
+              ]}
+              onPress={handleConfirmReservation}
+              disabled={bookingLoading}
+            >
+              <Text style={styles.reserveButtonText}>
+                {bookingLoading ? "Reservando..." : "Reservar ahora"}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.slotGrid}>
+            {availability.length === 0 ? (
+              <Text style={styles.emptySlotText}>
+                Consulta la disponibilidad para ver los bloques libres.
+              </Text>
+            ) : (
+              availability.map((slot) => {
+                const isSelected =
+                  selectedSlot?.hora_inicio === slot.hora_inicio;
+                return (
+                  <Pressable
+                    key={`${slot.hora_inicio}-${slot.hora_fin}`}
+                    style={[
+                      styles.slotCard,
+                      slot.disponible
+                        ? styles.slotAvailable
+                        : styles.slotOccupied,
+                      isSelected && styles.slotSelected,
+                    ]}
+                    onPress={() => slot.disponible && setSelectedSlot(slot)}
+                    disabled={!slot.disponible}
+                  >
+                    <Text style={styles.slotTime}>
+                      {slot.hora_inicio} - {slot.hora_fin}
+                    </Text>
+                    <Text style={styles.slotState}>
+                      {slot.disponible
+                        ? "Disponible"
+                        : slot.estado === "no disponible"
+                          ? "Ya pasó"
+                          : "Ocupado"}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            )}
           </View>
         </View>
 
@@ -252,6 +507,121 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 13,
     fontWeight: "700",
+  },
+  bookingCard: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+  },
+  helperText: {
+    color: "#C7D6EA",
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  inputLabel: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  dateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(7,17,31,0.95)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  dateButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  bookingActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  secondaryButtonPressed: {
+    opacity: 0.9,
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  secondaryButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  reserveButton: {
+    flex: 1,
+    backgroundColor: "#FFD700",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  reserveButtonPressed: {
+    opacity: 0.9,
+  },
+  reserveButtonDisabled: {
+    opacity: 0.7,
+  },
+  reserveButtonText: {
+    color: "#07111F",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  slotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  slotCard: {
+    width: "48%",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+  },
+  slotAvailable: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderColor: "rgba(34,197,94,0.35)",
+  },
+  slotOccupied: {
+    backgroundColor: "rgba(248,113,113,0.12)",
+    borderColor: "rgba(248,113,113,0.25)",
+  },
+  slotSelected: {
+    borderColor: "#FFD700",
+    shadowColor: "#FFD700",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  slotTime: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  slotState: {
+    color: "#C7D6EA",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  emptySlotText: {
+    color: "#C7D6EA",
+    fontSize: 13,
   },
   title: { color: "#fff", fontSize: 22, fontWeight: "800" },
   card: {
