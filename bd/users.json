@@ -4,7 +4,7 @@
     "name": "Juan Pérez",
     "email": "juan.perez@email.com",
     "phone": "+57 300 123 4567",
-    "password": "$2b$10$hA8np4vIYe3OF2F3ABfUh.6GqDHkGAGicLFNIVjGuj3g3dNgPr51m",
+    "password": "$2b$10$JFBy2IE6on0UUo59Bbc0VeQ1QvGKZXSGrzhlruI8IM9KqVgzLR6iK",
     "role": "deportista",
     "source": "fallback"
   }

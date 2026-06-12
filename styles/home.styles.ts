@@ -176,6 +176,23 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
+  favoriteChip: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(17, 24, 39, 0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  favoriteChipActive: {
+    backgroundColor: "rgba(34, 197, 94, 0.18)",
+    borderColor: "rgba(34, 197, 94, 0.55)",
+  },
   cardBadgeText: {
     color: "#fff",
     fontSize: 12,
@@ -265,5 +282,34 @@ export const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#3A3A3A",
     marginVertical: 4,
+  },
+  bottomBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: "#1F1F1F",
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  bottomBarItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    paddingVertical: 8,
+  },
+  bottomBarItemActive: {
+    backgroundColor: "rgba(76, 175, 80, 0.12)",
+  },
+  bottomBarText: {
+    color: "#C7C7C7",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  bottomBarTextActive: {
+    color: "#16A34A",
   },
 });

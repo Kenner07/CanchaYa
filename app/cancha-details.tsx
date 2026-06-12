@@ -2,16 +2,16 @@ import { getApiBaseUrl, readSessionUser } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    Alert,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,6 +32,8 @@ export default function CanchaDetailsScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [availability, setAvailability] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const params = useLocalSearchParams<{
     id?: string;
     name?: string;
@@ -86,6 +88,47 @@ export default function CanchaDetailsScreen() {
 
   const canchaId = Number(params.id || 0);
   const API_URL = getApiBaseUrl();
+
+  useEffect(() => {
+    const loadFavoriteState = async () => {
+      if (!canchaId) return;
+
+      try {
+        const sessionUser = await readSessionUser();
+        if (!sessionUser?.id) return;
+
+        const { response, data } = await fetchJson(
+          `${API_URL}/api/favoritos?usuario_id=${sessionUser.id}`,
+        );
+
+        if (response.ok && data.ok) {
+          setIsFavorite((data.favoritos || []).includes(canchaId));
+        }
+      } catch (error) {
+        console.warn("No se pudo cargar estado de favoritos:", error);
+      }
+    };
+
+    loadFavoriteState();
+  }, [API_URL, canchaId]);
+
+  const fetchJson = async (url: string, options: RequestInit = {}) => {
+    const response = await fetch(url, options);
+    const rawText = await response.text();
+
+    if (!rawText) {
+      throw new Error("La API no devolvió respuesta.");
+    }
+
+    try {
+      return { response, data: JSON.parse(rawText) };
+    } catch (error) {
+      throw new Error(
+        "La API no respondió en formato JSON. Verifica que el servidor esté corriendo en " +
+          API_URL,
+      );
+    }
+  };
 
   const formatMinutes = (value: number) => {
     const hours = Math.floor(value / 60)
@@ -174,6 +217,49 @@ export default function CanchaDetailsScreen() {
       );
     } finally {
       setAvailabilityLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    const sessionUser = await readSessionUser();
+
+    if (!sessionUser?.id) {
+      Alert.alert(
+        "Inicia sesión",
+        "Debes iniciar sesión para guardar favoritos.",
+      );
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setFavoriteLoading(true);
+      const { response, data } = await fetchJson(
+        `${API_URL}/api/favoritos/toggle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id_usuario: sessionUser.id,
+            id_cancha: canchaId,
+          }),
+        },
+      );
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "No se pudo actualizar favoritos.");
+      }
+
+      setIsFavorite(Boolean(data.isFavorite));
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar favoritos.",
+      );
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -267,6 +353,20 @@ export default function CanchaDetailsScreen() {
         <View style={styles.topActions}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
+          </Pressable>
+          <Pressable
+            onPress={toggleFavorite}
+            disabled={favoriteLoading}
+            style={[
+              styles.favoriteButton,
+              isFavorite && styles.favoriteButtonActive,
+            ]}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={20}
+              color={isFavorite ? "#22C55E" : "#fff"}
+            />
           </Pressable>
         </View>
 
@@ -493,6 +593,17 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 999,
     backgroundColor: "#22C55E",
+  },
+  favoriteButton: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(17, 24, 39, 0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+  },
+  favoriteButtonActive: {
+    backgroundColor: "rgba(34, 197, 94, 0.16)",
+    borderColor: "rgba(34, 197, 94, 0.55)",
   },
   homeButton: {
     flexDirection: "row",

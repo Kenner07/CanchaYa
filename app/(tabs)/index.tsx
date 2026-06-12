@@ -1,5 +1,7 @@
+import { styles } from "@/styles/home.styles";
 import { clearSession, getApiBaseUrl, readSessionUser } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -11,14 +13,16 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { styles } from "@/styles/home.styles";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const [name, setName] = useState("Jugador");
   const [role, setRole] = useState("deportista");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("Inicio");
   const [suggestedFields, setSuggestedFields] = useState<any[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
 
   const API_URL = getApiBaseUrl();
   const API_TIMEOUT_MS = 15000;
@@ -34,6 +38,27 @@ export default function HomeScreen() {
       });
     } finally {
       clearTimeout(timeoutId);
+    }
+  };
+
+  const fetchJson = async (url: string, options: RequestInit = {}) => {
+    const response = await fetchWithTimeout(url, options);
+    const rawText = await response.text();
+
+    if (!rawText) {
+      throw new Error("La API no devolvió respuesta.");
+    }
+
+    try {
+      return {
+        response,
+        data: JSON.parse(rawText),
+      };
+    } catch (error) {
+      throw new Error(
+        "La API no respondió en formato JSON. Verifica que el servidor esté corriendo en " +
+          API_URL,
+      );
     }
   };
 
@@ -77,6 +102,35 @@ export default function HomeScreen() {
   }, [API_URL]);
 
   useEffect(() => {
+    if (isFocused) {
+      setActiveSection("Inicio");
+    }
+  }, [isFocused]);
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const sessionUser = await readSessionUser();
+        if (!sessionUser?.id) return;
+
+        const { response, data } = await fetchJson(
+          `${API_URL}/api/favoritos?usuario_id=${sessionUser.id}`,
+        );
+
+        if (response.ok && data.ok) {
+          setFavoriteIds((data.favoritos || []).map(Number));
+        }
+      } catch (error) {
+        console.warn("No se pudieron cargar favoritos:", error);
+      }
+    };
+
+    if (isFocused) {
+      loadFavorites();
+    }
+  }, [API_URL, isFocused]);
+
+  useEffect(() => {
     const loadUser = async () => {
       try {
         const parsed = await readSessionUser();
@@ -112,6 +166,60 @@ export default function HomeScreen() {
     router.push("/admin-home");
   };
 
+  const handleBottomBarOption = (option: string) => {
+    setActiveSection(option);
+
+    if (option === "Favoritos") {
+      router.push("/favoritos");
+      return;
+    }
+
+    if (option === "Reservas") {
+      router.push("/reservas");
+      return;
+    }
+
+    if (option === "Perfil") {
+      router.push("/profile");
+      return;
+    }
+  };
+
+  const toggleFavorite = async (fieldId: number) => {
+    const sessionUser = await readSessionUser();
+
+    if (!sessionUser?.id) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const { response, data } = await fetchJson(
+        `${API_URL}/api/favoritos/toggle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id_usuario: sessionUser.id,
+            id_cancha: fieldId,
+          }),
+        },
+      );
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "No se pudo actualizar favoritos.");
+      }
+
+      setFavoriteIds((current) =>
+        data.isFavorite
+          ? [...current, fieldId]
+          : current.filter((item) => item !== fieldId),
+      );
+    } catch (error) {
+      console.warn("No se pudo alternar favorito:", error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -144,7 +252,7 @@ export default function HomeScreen() {
                     style={styles.menuItem}
                     onPress={() => {
                       setMenuOpen(false);
-                      // Perfil - por implementar
+                      router.push("/profile");
                     }}
                   >
                     <Ionicons
@@ -240,6 +348,28 @@ export default function HomeScreen() {
                 <View style={styles.cardBadge}>
                   <Text style={styles.cardBadgeText}>{field.status}</Text>
                 </View>
+                <Pressable
+                  style={[
+                    styles.favoriteChip,
+                    favoriteIds.includes(Number(field.id)) &&
+                      styles.favoriteChipActive,
+                  ]}
+                  onPress={() => toggleFavorite(Number(field.id))}
+                >
+                  <Ionicons
+                    name={
+                      favoriteIds.includes(Number(field.id))
+                        ? "heart"
+                        : "heart-outline"
+                    }
+                    size={16}
+                    color={
+                      favoriteIds.includes(Number(field.id))
+                        ? "#22C55E"
+                        : "#fff"
+                    }
+                  />
+                </Pressable>
               </ImageBackground>
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{field.name}</Text>
@@ -280,6 +410,41 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
       </ScrollView>
+
+      <View style={styles.bottomBar}>
+        {[
+          { label: "Inicio", icon: "home-outline" },
+          { label: "Reservas", icon: "calendar-outline" },
+          { label: "Favoritos", icon: "heart-outline" },
+          { label: "Perfil", icon: "person-outline" },
+        ].map((item) => {
+          const isActive = activeSection === item.label;
+          return (
+            <Pressable
+              key={item.label}
+              style={[
+                styles.bottomBarItem,
+                isActive && styles.bottomBarItemActive,
+              ]}
+              onPress={() => handleBottomBarOption(item.label)}
+            >
+              <Ionicons
+                name={item.icon as any}
+                size={18}
+                color={isActive ? "#22C55E" : "#C7C7C7"}
+              />
+              <Text
+                style={[
+                  styles.bottomBarText,
+                  isActive && styles.bottomBarTextActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }

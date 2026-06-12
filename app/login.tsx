@@ -6,13 +6,13 @@ import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -184,9 +184,6 @@ export default function LoginScreen() {
             </Pressable>
 
             <View style={styles.actionRow}>
-              <Pressable onPress={handleShowSavedData}>
-                <Text style={styles.actionText}>Ver datos guardados</Text>
-              </Pressable>
               <Pressable onPress={handleCreateAccount}>
                 <Text style={styles.actionText}>Crear cuenta</Text>
               </Pressable>
