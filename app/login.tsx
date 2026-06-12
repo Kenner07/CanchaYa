@@ -1,4 +1,5 @@
 import { getApiBaseUrl, getSessionFilePath } from "@/utils/api";
+import { registerPushNotifications } from "@/utils/push";
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import { ImageBackground } from "expo-image";
@@ -72,6 +73,8 @@ export default function LoginScreen() {
         },
       );
 
+      await registerPushNotifications(data.user);
+
       Alert.alert("Bienvenido", data.message || "Inicio de sesión correcto.", [
         { text: "OK", onPress: () => router.replace("/") },
       ]);
@@ -136,13 +139,13 @@ export default function LoginScreen() {
               <Ionicons
                 name="mail-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Correo electrónico"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 textContentType="emailAddress"
                 autoCapitalize="none"
@@ -155,13 +158,13 @@ export default function LoginScreen() {
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Contraseña"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 secureTextEntry
                 textContentType="password"
                 autoCapitalize="none"
@@ -198,17 +201,18 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#1F1F1F",
   },
   backgroundImage: {
     flex: 1,
     width: "100%",
     height: "100%",
     justifyContent: "center",
+    backgroundColor: "#1F1F1F",
   },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(31, 31, 31, 0.88)",
   },
   content: {
     flex: 1,
@@ -230,7 +234,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: "rgba(168,255,79,0.18)",
+    backgroundColor: "rgba(34,197,94,0.14)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -240,13 +244,13 @@ const styles = StyleSheet.create({
     height: 36,
   },
   brandText: {
-    color: "#FFD700",
+    color: "#16A34A",
     fontSize: 32,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
   title: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 42,
     fontWeight: "900",
     textAlign: "center",
@@ -258,24 +262,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
+    borderColor: "#3A3A3A",
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 18,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#2A2A2A",
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 16,
     fontWeight: "500",
   },
   loginButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#22C55E",
     paddingVertical: 18,
     borderRadius: 32,
     alignItems: "center",
@@ -288,11 +292,11 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   loginButtonPressed: {
-    backgroundColor: "#F7C500",
+    backgroundColor: "#16A34A",
     transform: [{ scale: 0.98 }],
   },
   loginButtonText: {
-    color: "#000",
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "800",
   },
@@ -302,7 +306,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   actionText: {
-    color: "#fff",
+    color: "#16A34A",
     fontSize: 14,
     fontWeight: "600",
   },

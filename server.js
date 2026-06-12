@@ -5,6 +5,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const { getPool } = require("./config/db");
 const reservasRoutes = require("./routes/reservas");
+const { ensureNotificationColumns, savePushToken } = require("./utils/notifications");
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -53,6 +54,38 @@ async function authenticateFallbackUser(email, password) {
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, message: "API de CanchaYa activa" });
+});
+
+app.post("/api/notifications/register-token", async (req, res) => {
+  try {
+    const { userType, userId, token } = req.body || {};
+
+    if (!userType || !userId || !token) {
+      return res.status(400).json({
+        ok: false,
+        message: "Debe enviar userType, userId y token.",
+      });
+    }
+
+    const connection = await getPool();
+    await ensureNotificationColumns(connection);
+
+    if (userType === "deportista") {
+      await savePushToken(connection, "deportistas", "id_deportista", userId, token);
+    } else if (userType === "administrador_gerentes") {
+      await savePushToken(connection, "administradores_gerentes", "id_usuario", userId, token);
+    } else {
+      return res.status(400).json({ ok: false, message: "Tipo de usuario no válido." });
+    }
+
+    return res.json({ ok: true, message: "Token de notificación guardado." });
+  } catch (error) {
+    console.error("Error al guardar token de notificación:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "No se pudo guardar el token de notificación.",
+    });
+  }
 });
 
 app.use("/api/reservas", reservasRoutes);
@@ -299,6 +332,13 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`API de CanchaYa ejecutándose en http://${HOST}:${PORT}`);
+app.listen(PORT, HOST, async () => {
+  try {
+    const connection = await getPool();
+    await ensureNotificationColumns(connection);
+    console.log(`API de CanchaYa ejecutándose en http://${HOST}:${PORT}`);
+  } catch (error) {
+    console.error("No se pudieron preparar las columnas de notificación:", error);
+    console.log(`API de CanchaYa ejecutándose en http://${HOST}:${PORT}`);
+  }
 });

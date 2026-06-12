@@ -139,13 +139,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="person-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Nombre completo"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 autoCapitalize="words"
                 value={name}
                 onChangeText={setName}
@@ -156,13 +156,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="person-circle-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Nombre de usuario"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 autoCapitalize="none"
                 value={username}
                 onChangeText={setUsername}
@@ -173,7 +173,7 @@ export default function RegisterScreen() {
               <Ionicons
                 name="document-text-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <Pressable
@@ -185,7 +185,7 @@ export default function RegisterScreen() {
                 >
                   {documentType || "Tipo de documento"}
                 </Text>
-                <Ionicons name="chevron-down-outline" size={20} color="#fff" />
+                <Ionicons name="chevron-down-outline" size={20} color="#16A34A" />
               </Pressable>
             </View>
             {documentOpen && (
@@ -209,13 +209,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="finger-print-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Número de documento"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="default"
                 autoCapitalize="none"
                 value={documentNumber}
@@ -227,13 +227,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="mail-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Correo electrónico"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 textContentType="emailAddress"
                 autoCapitalize="none"
@@ -246,13 +246,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="call-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Número de teléfono"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
                 textContentType="telephoneNumber"
                 autoCapitalize="none"
@@ -265,13 +265,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Contraseña"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 secureTextEntry
                 textContentType="newPassword"
                 autoCapitalize="none"
@@ -284,13 +284,13 @@ export default function RegisterScreen() {
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
-                color="#fff"
+                color="#16A34A"
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Confirmar contraseña"
-                placeholderTextColor="rgba(255,255,255,0.7)"
+                placeholderTextColor="#9CA3AF"
                 secureTextEntry
                 textContentType="newPassword"
                 autoCapitalize="none"
@@ -324,17 +324,18 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#1F1F1F",
   },
   backgroundImage: {
     flex: 1,
     width: "100%",
     height: "100%",
     justifyContent: "center",
+    backgroundColor: "#1F1F1F",
   },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(31, 31, 31, 0.88)",
   },
   content: {
     flex: 1,
@@ -357,7 +358,7 @@ const styles = StyleSheet.create({
     height: 36,
   },
   title: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 42,
     fontWeight: "900",
     textAlign: "center",
@@ -369,19 +370,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
+    borderColor: "#3A3A3A",
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 18,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#2A2A2A",
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 16,
     fontWeight: "500",
   },
@@ -393,14 +394,14 @@ const styles = StyleSheet.create({
   },
   selectPlaceholder: {
     flex: 1,
-    color: "rgba(255,255,255,0.7)",
+    color: "#A3A3A3",
     fontSize: 16,
     fontWeight: "500",
   },
   optionList: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#2A2A2A",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
+    borderColor: "#3A3A3A",
     borderRadius: 18,
     marginBottom: 18,
     overflow: "hidden",
@@ -410,12 +411,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   optionText: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 16,
     fontWeight: "500",
   },
   loginButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#22C55E",
     paddingVertical: 18,
     borderRadius: 32,
     alignItems: "center",
@@ -428,11 +429,11 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   loginButtonPressed: {
-    backgroundColor: "#F7C500",
+    backgroundColor: "#16A34A",
     transform: [{ scale: 0.98 }],
   },
   loginButtonText: {
-    color: "#000",
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "800",
   },
@@ -442,7 +443,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   actionText: {
-    color: "#fff",
+    color: "#16A34A",
     fontSize: 14,
     fontWeight: "600",
   },

@@ -1,4 +1,5 @@
 const { getPool } = require("../config/db");
+const { sendExpoPushNotification } = require("../utils/notifications");
 
 function toMinutes(time) {
   const [hours, minutes] = String(time).split(":").map(Number);
@@ -281,6 +282,35 @@ async function actualizarEstadoReserva(req, res) {
       [estado, idReserva],
     );
 
+    const [notificationRows] = await connection.query(
+      `SELECT
+         r.id_reserva,
+         r.fecha,
+         r.hora_inicio,
+         r.hora_fin,
+         d.nombre_deportista,
+         d.expo_push_token,
+         c.nombre_cancha
+       FROM reservas r
+       LEFT JOIN deportistas d ON d.id_deportista = r.id_deportista
+       LEFT JOIN canchas c ON c.id_cancha = r.id_cancha
+       WHERE r.id_reserva = ?
+       LIMIT 1`,
+      [idReserva],
+    );
+
+    if (notificationRows.length > 0) {
+      const notification = notificationRows[0];
+      const actionLabel = estado === "confirmada" ? "aprobada" : "rechazada";
+
+      await sendExpoPushNotification(
+        notification.expo_push_token,
+        `Reserva ${actionLabel}`,
+        `${notification.nombre_deportista || "Tu reserva"} fue ${actionLabel} para ${notification.nombre_cancha || "la cancha"} el ${notification.fecha} de ${notification.hora_inicio} a ${notification.hora_fin}.`,
+        { type: "reservation_status_updated", id_reserva: idReserva },
+      );
+    }
+
     return res.json({
       ok: true,
       message:
@@ -392,6 +422,34 @@ async function crearReserva(req, res) {
         estado,
       ],
     );
+
+    const [reservationRows] = await connection.query(
+      `SELECT
+         r.id_reserva,
+         r.fecha,
+         r.hora_inicio,
+         r.hora_fin,
+         d.nombre_deportista,
+         c.nombre_cancha,
+         g.expo_push_token AS gerente_token
+       FROM reservas r
+       LEFT JOIN deportistas d ON d.id_deportista = r.id_deportista
+       LEFT JOIN canchas c ON c.id_cancha = r.id_cancha
+       LEFT JOIN administradores_gerentes g ON g.id_usuario = c.id_gerente
+       WHERE r.id_reserva = ?
+       LIMIT 1`,
+      [result.insertId],
+    );
+
+    if (reservationRows.length > 0) {
+      const reservation = reservationRows[0];
+      await sendExpoPushNotification(
+        reservation.gerente_token,
+        "Nueva reserva pendiente",
+        `${reservation.nombre_deportista || "Un usuario"} reservó ${reservation.nombre_cancha || "la cancha"} para ${reservation.fecha} de ${reservation.hora_inicio} a ${reservation.hora_fin}. Revisa la solicitud para aprobarla o rechazarla.`,
+        { type: "new_reservation", id_reserva: result.insertId },
+      );
+    }
 
     return res.status(201).json({
       ok: true,

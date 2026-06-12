@@ -289,7 +289,7 @@ export default function CanchaDetailsScreen() {
                 </Text>
               </View>
               <View style={styles.ratingChip}>
-                <Ionicons name="star" size={14} color="#FFD700" />
+                <Ionicons name="football" size={14} color="#22C55E" />
                 <Text style={styles.ratingText}>{params.rating || "0.0"}</Text>
               </View>
             </View>
@@ -313,7 +313,7 @@ export default function CanchaDetailsScreen() {
             style={styles.dateButton}
             onPress={() => setShowDatePicker(true)}
           >
-            <Ionicons name="calendar-outline" size={18} color="#fff" />
+            <Ionicons name="calendar-outline" size={18} color="#16A34A" />
             <Text style={styles.dateButtonText}>{selectedDate}</Text>
           </Pressable>
 
@@ -480,7 +480,7 @@ export default function CanchaDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000000" },
+  container: { flex: 1, backgroundColor: "#1F1F1F" },
   content: { padding: 18, paddingBottom: 36 },
   topActions: {
     flexDirection: "row",
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#22C55E",
   },
   homeButton: {
     flexDirection: "row",
@@ -501,26 +501,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#2A2A2A",
   },
   homeButtonText: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 13,
     fontWeight: "700",
   },
   bookingCard: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#2A2A2A",
     borderRadius: 18,
     padding: 14,
     marginBottom: 16,
   },
   helperText: {
-    color: "#C7D6EA",
+    color: "#C7C7C7",
     fontSize: 13,
     marginBottom: 10,
   },
   inputLabel: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 6,
@@ -529,8 +529,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(7,17,31,0.95)",
-    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#2A2A2A",
+    borderColor: "#3A3A3A",
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dateButtonText: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 14,
     fontWeight: "700",
   },
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#333333",
     borderRadius: 14,
     paddingVertical: 10,
     alignItems: "center",
@@ -561,13 +561,13 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   secondaryButtonText: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 13,
     fontWeight: "700",
   },
   reserveButton: {
     flex: 1,
-    backgroundColor: "#FFD700",
+    backgroundColor: "#22C55E",
     borderRadius: 14,
     paddingVertical: 10,
     alignItems: "center",
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   reserveButtonText: {
-    color: "#07111F",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "800",
   },
@@ -604,26 +604,26 @@ const styles = StyleSheet.create({
     borderColor: "rgba(248,113,113,0.25)",
   },
   slotSelected: {
-    borderColor: "#FFD700",
-    shadowColor: "#FFD700",
+    borderColor: "#22C55E",
+    shadowColor: "#22C55E",
     shadowOpacity: 0.2,
     shadowRadius: 6,
   },
   slotTime: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 13,
     fontWeight: "700",
   },
   slotState: {
-    color: "#C7D6EA",
+    color: "#C7C7C7",
     fontSize: 11,
     marginTop: 2,
   },
   emptySlotText: {
-    color: "#C7D6EA",
+    color: "#C7C7C7",
     fontSize: 13,
   },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800" },
+  title: { color: "#F9FAFB", fontSize: 22, fontWeight: "800" },
   card: {
     backgroundColor: "transparent",
     borderRadius: 0,
@@ -666,12 +666,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.72)",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255, 215, 0, 0.35)",
+    borderColor: "rgba(34,197,94,0.45)",
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
   priceChipText: {
-    color: "#FFD700",
+    color: "#22C55E",
     fontSize: 12,
     fontWeight: "800",
   },
@@ -684,26 +684,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusChip: {
-    backgroundColor: "rgba(255, 215, 0, 0.12)",
+    backgroundColor: "rgba(34,197,94,0.12)",
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 215, 0, 0.25)",
+    borderColor: "rgba(34,197,94,0.25)",
   },
-  statusChipText: { color: "#FFD700", fontSize: 12, fontWeight: "700" },
+  statusChipText: { color: "#16A34A", fontSize: 12, fontWeight: "700" },
   ratingChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#2A2A2A",
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     gap: 4,
   },
-  ratingText: { color: "#fff", fontSize: 12, fontWeight: "700" },
-  cardTitle: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  cardSubtitle: { color: "#C7D6EA", fontSize: 14, marginTop: 4 },
+  ratingText: { color: "#F9FAFB", fontSize: 12, fontWeight: "700" },
+  cardTitle: { color: "#F9FAFB", fontSize: 22, fontWeight: "800" },
+  cardSubtitle: { color: "#C7C7C7", fontSize: 14, marginTop: 4 },
   infoBox: {
     backgroundColor: "transparent",
     borderRadius: 0,
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   sectionTitle: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 15,
     fontWeight: "800",
     marginBottom: 10,
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scheduleChip: {
-    backgroundColor: "rgba(255, 215, 0, 0.10)",
+    backgroundColor: "rgba(34,197,94,0.10)",
     borderWidth: 0,
     borderColor: "transparent",
     borderRadius: 14,
@@ -740,12 +740,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   scheduleChipText: {
-    color: "#FFD700",
+    color: "#16A34A",
     fontSize: 12,
     fontWeight: "700",
   },
   emptyScheduleText: {
-    color: "#C7D6EA",
+    color: "#C7C7C7",
     fontSize: 13,
   },
   row: {
@@ -755,9 +755,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
     paddingVertical: 8,
   },
-  label: { color: "#9FB4CC", fontSize: 14, fontWeight: "600", flex: 1 },
+  label: { color: "#C7C7C7", fontSize: 14, fontWeight: "600", flex: 1 },
   value: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 14,
     fontWeight: "700",
     flex: 1,
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   mapTitle: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 10,
@@ -780,9 +780,9 @@ const styles = StyleSheet.create({
   mapPlaceholder: {
     height: 220,
     borderRadius: 16,
-    backgroundColor: "rgba(7, 17, 31, 0.95)",
+    backgroundColor: "#333333",
     justifyContent: "center",
     alignItems: "center",
   },
-  mapPlaceholderText: { color: "#C7D6EA", fontSize: 14 },
+  mapPlaceholderText: { color: "#C7C7C7", fontSize: 14 },
 });

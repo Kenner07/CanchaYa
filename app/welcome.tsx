@@ -32,6 +32,7 @@ export default function WelcomeScreen() {
               <Image
                 source={require("@/assets/images/partial-react-logo.png")}
                 style={styles.logo}
+                contentFit="contain"
               />
             </View>
 
@@ -61,7 +62,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#1F1F1F",
   },
   backgroundImage: {
     flex: 1,
@@ -73,6 +74,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 40,
+    backgroundColor: "rgba(31, 31, 31, 0.9)",
   },
   content: {
     flex: 1,
@@ -90,7 +92,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 120,
     height: 120,
-    resizeMode: "contain",
   },
   textContainer: {
     flex: 0.4,
@@ -100,19 +101,19 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 48,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#F9FAFB",
     textAlign: "center",
     marginBottom: 10,
   },
   subtitleText: {
     fontSize: 28,
     fontWeight: "600",
-    color: "#fff",
+    color: "#C7C7C7",
     textAlign: "center",
     opacity: 0.9,
   },
   button: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#22C55E",
     paddingHorizontal: 60,
     paddingVertical: 16,
     borderRadius: 50,
@@ -127,13 +128,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonPressed: {
-    backgroundColor: "#FFC700",
+    backgroundColor: "#16A34A",
     transform: [{ scale: 0.95 }],
   },
   buttonText: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#000",
+    color: "#FFFFFF",
     textAlign: "center",
   },
 });

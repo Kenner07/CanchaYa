@@ -221,7 +221,7 @@ export default function AdminHomeScreen() {
 
       try {
         data = rawText ? JSON.parse(rawText) : {};
-      } catch (parseError) {
+      } catch {
         throw new Error(
           `Respuesta inválida del servidor (${response.status}). Reinicia el backend si sigue ocurriendo.`,
         );
@@ -429,7 +429,7 @@ export default function AdminHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#060606" },
+  container: { flex: 1, backgroundColor: "#1F1F1F" },
   content: { padding: 18, paddingBottom: 36 },
   headerRow: {
     position: "relative",
@@ -448,14 +448,14 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   eyebrow: {
-    color: "#FFD700",
+    color: "#16A34A",
     textTransform: "uppercase",
     letterSpacing: 1.6,
     fontSize: 11,
     fontWeight: "700",
   },
-  title: { color: "#fff", fontSize: 26, fontWeight: "800", marginTop: 6 },
-  subtitle: { color: "rgba(255,255,255,0.72)", marginTop: 4, fontSize: 13 },
+  title: { color: "#F9FAFB", fontSize: 26, fontWeight: "800", marginTop: 6 },
+  subtitle: { color: "#C7C7C7", marginTop: 4, fontSize: 13 },
   headerActions: {
     position: "absolute",
     top: 0,
@@ -471,18 +471,18 @@ const styles = StyleSheet.create({
   logoutButton: {
     padding: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "#22C55E",
   },
   secondaryHeaderButton: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#2A2A2A",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "#3A3A3A",
   },
   secondaryHeaderButtonText: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -494,31 +494,31 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flexBasis: "32%",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#2A2A2A",
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#3A3A3A",
   },
-  statValue: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  statLabel: { color: "rgba(255,255,255,0.68)", marginTop: 4, fontSize: 12 },
+  statValue: { color: "#F9FAFB", fontSize: 18, fontWeight: "800" },
+  statLabel: { color: "#C7C7C7", marginTop: 4, fontSize: 12 },
   assignmentBox: {
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
+    backgroundColor: "rgba(34,197,94,0.10)",
     borderRadius: 18,
     padding: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 215, 0, 0.18)",
+    borderColor: "rgba(34,197,94,0.22)",
     marginBottom: 14,
   },
   assignmentLabel: {
-    color: "#FFD700",
+    color: "#16A34A",
     fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 1.4,
     fontWeight: "700",
   },
   assignmentText: {
-    color: "#fff",
+    color: "#F9FAFB",
     fontSize: 14,
     fontWeight: "600",
     marginTop: 4,
@@ -529,26 +529,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  sectionTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  sectionTitle: { color: "#F9FAFB", fontSize: 18, fontWeight: "800" },
   secondaryButton: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#2A2A2A",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
   },
-  secondaryButtonText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  secondaryButtonText: { color: "#F9FAFB", fontSize: 12, fontWeight: "700" },
   card: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#2A2A2A",
     borderRadius: 18,
     overflow: "hidden",
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#3A3A3A",
   },
   cardImage: { width: "100%", height: 140 },
   cardBody: { padding: 12 },
-  cardTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  cardText: { color: "rgba(255,255,255,0.72)", fontSize: 13, marginTop: 4 },
+  cardTitle: { color: "#F9FAFB", fontSize: 16, fontWeight: "800" },
+  cardText: { color: "#C7C7C7", fontSize: 13, marginTop: 4 },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -562,43 +562,43 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 8,
   },
-  priceText: { color: "#FFD700", fontSize: 13, fontWeight: "700" },
+  priceText: { color: "#16A34A", fontSize: 13, fontWeight: "700" },
   actionButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#22C55E",
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
   },
   secondaryActionButton: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#333333",
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "#3A3A3A",
   },
-  actionButtonText: { color: "#000", fontSize: 12, fontWeight: "800" },
-  secondaryActionText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  actionButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  secondaryActionText: { color: "#F9FAFB", fontSize: 12, fontWeight: "700" },
   reservationsPanel: {
     paddingHorizontal: 12,
     paddingBottom: 12,
     gap: 8,
   },
   reservationCard: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#333333",
     borderRadius: 14,
     padding: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#3A3A3A",
   },
-  reservationTitle: { color: "#fff", fontSize: 14, fontWeight: "800" },
+  reservationTitle: { color: "#F9FAFB", fontSize: 14, fontWeight: "800" },
   reservationMeta: {
-    color: "rgba(255,255,255,0.78)",
+    color: "#C7C7C7",
     fontSize: 12,
     marginTop: 2,
   },
   reservationStatus: {
-    color: "#FFD700",
+    color: "#16A34A",
     fontSize: 12,
     marginTop: 4,
     fontWeight: "700",
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(76, 175, 80, 0.45)",
   },
   approveButtonText: {
-    color: "#B8F2B8",
+    color: "#166534",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -636,5 +636,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  emptyText: { color: "rgba(255,255,255,0.72)", fontSize: 12 },
+  emptyText: { color: "#C7C7C7", fontSize: 12 },
 });

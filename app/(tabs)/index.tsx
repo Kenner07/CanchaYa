@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { styles } from "../styles/home.styles";
+import { styles } from "@/styles/home.styles";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -129,14 +129,14 @@ export default function HomeScreen() {
 
           <View style={styles.topIcons}>
             <Pressable style={styles.searchButton}>
-              <Ionicons name="search" size={22} color="#fff" />
+              <Ionicons name="search" size={22} color="#16A34A" />
             </Pressable>
             <View style={styles.avatarContainer}>
               <Pressable
                 style={styles.avatar}
                 onPress={() => setMenuOpen(!menuOpen)}
               >
-                <Ionicons name="person-outline" size={20} color="#fff" />
+                <Ionicons name="person-outline" size={20} color="#16A34A" />
               </Pressable>
               {menuOpen && (
                 <View style={styles.dropdownMenu}>
@@ -150,7 +150,7 @@ export default function HomeScreen() {
                     <Ionicons
                       name="person-circle-outline"
                       size={18}
-                      color="#FFD700"
+                      color="#22C55E"
                     />
                     <Text style={styles.menuItemText}>Perfil</Text>
                   </Pressable>
@@ -163,7 +163,7 @@ export default function HomeScreen() {
                         <Ionicons
                           name="shield-outline"
                           size={18}
-                          color="#FFD700"
+                          color="#22C55E"
                         />
                         <Text style={styles.menuItemText}>
                           Panel de administración
@@ -245,7 +245,7 @@ export default function HomeScreen() {
                 <Text style={styles.cardTitle}>{field.name}</Text>
                 <View style={styles.cardRow}>
                   <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={14} color="#FFD700" />
+                    <Ionicons name="football" size={14} color="#22C55E" />
                     <Text style={styles.cardRating}>{field.rating}</Text>
                   </View>
                   <Text style={styles.cardDistance}>{field.distance}</Text>

@@ -1,50 +1,93 @@
-# Welcome to your Expo app 👋
+# CanchaYa
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+CanchaYa es una aplicacion movil para buscar, consultar y reservar canchas deportivas. El proyecto combina una app Expo/React Native con una API Node.js/Express conectada a MySQL.
 
-## Get started
+## Funcionalidades principales
 
-1. Install dependencies
+- Registro e inicio de sesion de deportistas.
+- Inicio de sesion para administradores o gerentes.
+- Listado de canchas cercanas con mapa.
+- Vista de detalle de cancha con precio, ubicacion, horarios e imagen.
+- Consulta de disponibilidad por fecha.
+- Creacion de reservas por bloques horarios.
+- Panel de administracion para ver canchas asignadas.
+- Aprobacion o rechazo de reservas por parte del gerente.
+- Registro y envio de notificaciones push con Expo.
 
-   ```bash
-   npm install
-   ```
+## Tecnologias
 
-2. Start the app
+- Expo
+- React Native
+- Expo Router
+- Node.js
+- Express
+- MySQL
+- Expo Notifications
 
-   ```bash
-   npx expo start
-   ```
+## Requisitos
 
-In the output, you'll find options to open the app in a
+- Node.js instalado.
+- MySQL o XAMPP corriendo.
+- Base de datos `busqueda_canchas` creada con las tablas esperadas por la API.
+- Dependencias instaladas con `npm install`.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Configuracion de base de datos
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+La conexion se configura en `config/db.js`.
 
-## Get a fresh project
+Valores por defecto:
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```txt
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=busqueda_canchas
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Puedes sobrescribirlos usando variables de entorno.
 
-## Learn more
+## Como ejecutar
 
-To learn more about developing your project with Expo, look at the following resources:
+Instalar dependencias:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm install
+```
 
-## Join the community
+Levantar la API:
 
-Join our community of developers creating universal apps.
+```bash
+npm run server
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Levantar la app Expo:
+
+```bash
+npm start
+```
+
+La API usa por defecto el puerto `3001`.
+
+## Rutas principales de la API
+
+- `GET /api/health`: verifica que la API este activa.
+- `GET /api/canchas`: lista las canchas registradas.
+- `POST /api/register`: registra un deportista.
+- `POST /api/login`: inicia sesion.
+- `GET /api/reservas/disponibilidad`: consulta horarios disponibles de una cancha.
+- `POST /api/reservas`: crea una reserva.
+- `GET /api/reservas/cancha/:id_cancha`: lista reservas de una cancha.
+- `PATCH /api/reservas/:id_reserva/estado`: aprueba o rechaza una reserva.
+
+## Estructura relevante
+
+- `app/`: pantallas y rutas de la app movil.
+- `app/(tabs)/index.tsx`: pantalla principal de canchas cercanas.
+- `app/cancha-details.tsx`: detalle y reserva de cancha.
+- `app/admin-home.tsx`: panel de administracion.
+- `server.js`: entrada principal de la API.
+- `controllers/reservasController.js`: logica de reservas.
+- `routes/reservas.js`: rutas de reservas.
+- `config/db.js`: conexion a MySQL.
+- `utils/`: utilidades de API, sesion y notificaciones.
