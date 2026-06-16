@@ -70,7 +70,7 @@ export default function FavoritosScreen() {
       ) : (
         <FlatList
           data={favoritos}
-          keyExtractor={(item) => String(item.id_cancha)}
+          keyExtractor={(item) => String(item.id_complejo ?? item.id_cancha)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <Pressable
@@ -80,7 +80,8 @@ export default function FavoritosScreen() {
                   pathname: "/cancha-details",
                   params: {
                     id: String(item.id_cancha),
-                    name: item.nombre_cancha,
+                    id_complejo: String(item.id_complejo ?? item.id_cancha),
+                    name: item.nombre_complejo || item.nombre_cancha,
                     rating: String(item.valoracion || 0),
                     address: item.direccion_cancha || "null",
                     distance: "1.2 km",
@@ -88,7 +89,7 @@ export default function FavoritosScreen() {
                     latitude: String(item.latitud ?? "null"),
                     longitude: String(item.longitud ?? "null"),
                     precio: String(item.precio ?? "null"),
-                    horario: "null",
+                    horario: item.horario ?? "null",
                     superficie: item.superficie ?? "null",
                     capacidad: item.capacidad ?? "null",
                     imageUrl: item.imagen_url || "null",
@@ -105,7 +106,9 @@ export default function FavoritosScreen() {
                 style={styles.image}
               />
               <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{item.nombre_cancha}</Text>
+                <Text style={styles.cardTitle}>
+                  {item.nombre_complejo || item.nombre_cancha}
+                </Text>
                 <Text style={styles.cardSubtitle}>
                   {item.direccion_cancha || "Sin dirección"}
                 </Text>

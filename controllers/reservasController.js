@@ -251,9 +251,10 @@ async function actualizarEstadoReserva(req, res) {
     const connection = await getPool();
 
     const [reservaRows] = await connection.query(
-      `SELECT r.id_reserva, r.id_cancha, r.estado, c.id_gerente
+      `SELECT r.id_reserva, r.id_cancha, r.estado, co.id_usuario AS id_gerente
        FROM reservas r
        LEFT JOIN canchas c ON c.id_cancha = r.id_cancha
+       LEFT JOIN complejos co ON co.id_complejo = c.id_complejo
        WHERE r.id_reserva = ?
        LIMIT 1`,
       [idReserva],
@@ -435,7 +436,8 @@ async function crearReserva(req, res) {
        FROM reservas r
        LEFT JOIN deportistas d ON d.id_deportista = r.id_deportista
        LEFT JOIN canchas c ON c.id_cancha = r.id_cancha
-       LEFT JOIN administradores_gerentes g ON g.id_usuario = c.id_gerente
+       LEFT JOIN complejos co ON co.id_complejo = c.id_complejo
+       LEFT JOIN administradores_gerentes g ON g.id_usuario = co.id_usuario
        WHERE r.id_reserva = ?
        LIMIT 1`,
       [result.insertId],

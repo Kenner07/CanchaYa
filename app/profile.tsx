@@ -1,16 +1,21 @@
-import { getApiBaseUrl, readSessionUser, saveSessionUser } from "@/utils/api";
+import {
+  getApiBaseCandidates,
+  readSessionUser,
+  resolveImageUrl,
+  saveSessionUser,
+} from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -51,7 +56,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ["images"] as any,
         quality: 0.85,
         allowsEditing: true,
         aspect: [1, 1],
@@ -69,23 +74,42 @@ export default function ProfileScreen() {
       } as any);
 
       setUploading(true);
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/profile/upload-photo`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-      const data = await response.json();
+      const baseCandidates = getApiBaseCandidates();
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || "No se pudo actualizar la foto.");
+      let response: Response | null = null;
+      let lastError: unknown;
+
+      for (const baseUrl of baseCandidates) {
+        try {
+          response = await fetch(`${baseUrl}/api/profile/upload-photo`, {
+            method: "POST",
+            body: formData,
+          });
+
+          const text = await response.text();
+          if (!response.ok || !text.trim().startsWith("{")) {
+            throw new Error("Respuesta no válida del servidor.");
+          }
+
+          const data = JSON.parse(text);
+          if (!data.ok) {
+            throw new Error(data.message || "No se pudo actualizar la foto.");
+          }
+
+          const normalizedImageUrl =
+            resolveImageUrl(data.imageUrl) || data.imageUrl;
+          const updatedUser = { ...user, foto_perfil: normalizedImageUrl };
+          setUser(updatedUser);
+          await saveSessionUser(updatedUser);
+          Alert.alert("Éxito", "Tu foto de perfil se actualizó correctamente.");
+          return;
+        } catch (error) {
+          lastError = error;
+          continue;
+        }
       }
 
-      const updatedUser = { ...user, foto_perfil: data.imageUrl };
-      setUser(updatedUser);
-      await saveSessionUser(updatedUser);
-      Alert.alert("Éxito", "Tu foto de perfil se actualizó correctamente.");
+      throw lastError || new Error("No se pudo actualizar la foto.");
     } catch (error) {
       console.warn("Error al subir foto:", error);
       Alert.alert("Error", "No se pudo cambiar la foto de perfil.");
@@ -110,7 +134,9 @@ export default function ProfileScreen() {
         <View style={styles.cardPrimary}>
           {user.foto_perfil ? (
             <Image
-              source={{ uri: user.foto_perfil }}
+              source={{
+                uri: resolveImageUrl(user.foto_perfil) || user.foto_perfil,
+              }}
               style={styles.avatarImage}
             />
           ) : (

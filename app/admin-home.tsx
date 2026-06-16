@@ -3,13 +3,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -286,7 +286,10 @@ export default function AdminHomeScreen() {
           </Text>
           <Text style={styles.assignmentText}>
             {assignedCanchas.length > 0
-              ? assignedCanchas.map((item) => item.nombre_cancha).join(" · ")
+              ? assignedCanchas
+                  .map((item) => item.nombre_complejo || item.nombre_cancha)
+                  .filter(Boolean)
+                  .join(" · ")
               : "No hay canchas asignadas a este usuario."}
           </Text>
         </View>
@@ -317,7 +320,9 @@ export default function AdminHomeScreen() {
               style={styles.cardImage}
             />
             <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>{field.nombre_cancha}</Text>
+              <Text style={styles.cardTitle}>
+                {field.nombre_complejo || field.nombre_cancha}
+              </Text>
               <Text style={styles.cardText}>{field.direccion_cancha}</Text>
               <View style={styles.cardFooter}>
                 <Text style={styles.priceText}>
@@ -327,10 +332,21 @@ export default function AdminHomeScreen() {
                   <Pressable
                     style={styles.actionButton}
                     onPress={() =>
-                      Alert.alert(
-                        "Editar",
-                        `Próximamente podrás editar ${field.nombre_cancha}.`,
-                      )
+                      router.push({
+                        pathname: "/cancha-details",
+                        params: {
+                          id: String(field.id_cancha ?? ""),
+                          id_complejo: String(
+                            field.id_complejo ?? field.id_cancha ?? "",
+                          ),
+                          name: field.nombre_complejo || field.nombre_cancha,
+                          address: field.direccion_cancha || "",
+                          precio: String(field.precio ?? "0"),
+                          superficie: field.superficie || "",
+                          imageUrl: field.imagen_url || "",
+                          fromAdmin: "1",
+                        },
+                      })
                     }
                   >
                     <Text style={styles.actionButtonText}>Editar</Text>

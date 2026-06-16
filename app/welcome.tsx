@@ -1,58 +1,72 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    ImageBackground,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ImageBackground,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { readSessionUser } from "@/utils/api";
+
+const WELCOME_SEEN_KEY = "welcome_seen";
 
 export default function WelcomeScreen() {
   const router = useRouter();
 
-  const handleBegin = () => {
-    router.replace("/");
+  const handleBegin = async () => {
+    try {
+      await AsyncStorage.setItem(WELCOME_SEEN_KEY, "true");
+      const sessionUser = await readSessionUser();
+
+      if (sessionUser?.id) {
+        router.replace("/");
+      } else {
+        router.replace("/login");
+      }
+    } catch (error) {
+      console.warn("No se pudo iniciar el flujo de bienvenida:", error);
+      router.replace("/login");
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Imagen de fondo con blur */}
       <ImageBackground
-        source={require("@/assets/images/partial-react-logo.png")}
+        source={require("@/assets/images/fondo.png")}
         style={styles.backgroundImage}
-        blurRadius={10}
+        blurRadius={18}
       >
-        <View style={styles.blurContainer}>
-          <View style={styles.content}>
-            {/* Logo en la parte superior */}
-            <View style={styles.logoContainer}>
-              <Image
-                source={require("@/assets/images/partial-react-logo.png")}
-                style={styles.logo}
-                contentFit="contain"
-              />
-            </View>
-
-            {/* Texto de bienvenida */}
-            <View style={styles.textContainer}>
-              <Text style={styles.welcomeText}>¡Bienvenido!</Text>
-              <Text style={styles.subtitleText}>a CanchaYa</Text>
-            </View>
-
-            {/* Botón Comenzar */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={handleBegin}
-            >
-              <Text style={styles.buttonText}>Comenzar</Text>
-            </Pressable>
+        <View style={styles.darkOverlay} />
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Image
+              source={require("@/assets/images/Logo.png")}
+              style={styles.brandLogo}
+              contentFit="contain"
+            />
           </View>
+
+          <View style={styles.messageContainer}>
+            <Text style={styles.title}>¡Bienvenido!</Text>
+            <Text style={styles.subtitle}>
+              Empieza a buscar tu cancha cercana
+            </Text>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.loginButton,
+              pressed && styles.loginButtonPressed,
+            ]}
+            onPress={handleBegin}
+          >
+            <Text style={styles.loginButtonText}>Empezar</Text>
+          </Pressable>
         </View>
       </ImageBackground>
     </SafeAreaView>
@@ -68,73 +82,65 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     height: "100%",
+    justifyContent: "center",
+    backgroundColor: "#1F1F1F",
   },
-  blurContainer: {
-    flex: 1,
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 40,
-    backgroundColor: "rgba(31, 31, 31, 0.9)",
+  darkOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(31, 31, 31, 0.88)",
   },
   content: {
     flex: 1,
-    width: "100%",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  logoContainer: {
-    flex: 0.3,
     justifyContent: "center",
+    paddingHorizontal: 24,
+    zIndex: 1,
+  },
+  header: {
     alignItems: "center",
-    marginTop: 20,
+    marginBottom: 32,
   },
-  logo: {
-    width: 120,
-    height: 120,
+  brandLogo: {
+    width: 130,
+    height: 36,
   },
-  textContainer: {
-    flex: 0.4,
-    justifyContent: "center",
+  messageContainer: {
     alignItems: "center",
+    marginBottom: 32,
   },
-  welcomeText: {
-    fontSize: 48,
-    fontWeight: "bold",
+  title: {
     color: "#F9FAFB",
+    fontSize: 42,
+    fontWeight: "900",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: 16,
   },
-  subtitleText: {
-    fontSize: 28,
-    fontWeight: "600",
+  subtitle: {
     color: "#C7C7C7",
+    fontSize: 20,
     textAlign: "center",
+    lineHeight: 28,
     opacity: 0.9,
   },
-  button: {
+  loginButton: {
     backgroundColor: "#22C55E",
-    paddingHorizontal: 60,
-    paddingVertical: 16,
-    borderRadius: 50,
-    marginBottom: 40,
+    paddingVertical: 18,
+    borderRadius: 32,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 18,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
   },
-  buttonPressed: {
+  loginButtonPressed: {
     backgroundColor: "#16A34A",
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.98 }],
   },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: "700",
+  loginButtonText: {
     color: "#FFFFFF",
-    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "800",
   },
 });

@@ -148,7 +148,12 @@ export default function ReservasScreen() {
                   style={styles.image}
                 />
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle}>{item.nombre_cancha}</Text>
+                  <Text style={styles.cardTitle}>
+                    {item.nombre_complejo || item.nombre_cancha || "Complejo"}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    {item.nombre_cancha || item.nombre_complejo || "Cancha"}
+                  </Text>
                   <Text style={styles.cardSubtitle}>
                     {item.direccion_cancha || "Sin dirección"}
                   </Text>

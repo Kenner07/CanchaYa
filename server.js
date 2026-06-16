@@ -1,5 +1,7 @@
-require("dotenv").config();
 const path = require("path");
+const os = require("os");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+require("dotenv").config({ path: path.resolve(__dirname, "utils", ".env") });
 const fs = require("fs/promises");
 const express = require("express");
 const cors = require("cors");
@@ -14,13 +16,27 @@ const {
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
-const HOST = process.env.API_HOST || "0.0.0.0";
+const getLanHost = () => {
+  const interfaces = os.networkInterfaces();
+
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries || []) {
+      if (entry.family === "IPv4" && !entry.internal) {
+        return entry.address;
+      }
+    }
+  }
+
+  return "0.0.0.0";
+};
+const HOST = process.env.API_HOST || getLanHost();
 
 const FALLBACK_USERS_FILE = path.join(__dirname, "bd", "users.json");
 
 app.use(cors());
 app.use(express.json());
 app.use("/assets", express.static(path.join(__dirname, "assets")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 async function readFallbackUsers() {
   try {
@@ -60,14 +76,48 @@ async function authenticateFallbackUser(email, password) {
 async function ensureFavoritesTable(connection) {
   await connection.query(`
     CREATE TABLE IF NOT EXISTS favoritos (
-      id_favorito BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-      id_usuario BIGINT UNSIGNED NOT NULL,
-      id_cancha BIGINT UNSIGNED NOT NULL,
+      id_favorito INT NOT NULL AUTO_INCREMENT,
+      id_usuario INT NOT NULL,
+      id_complejo INT NOT NULL,
       fecha_agregado TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id_favorito),
-      UNIQUE KEY uq_favoritos_usuario_cancha (id_usuario, id_cancha)
+      UNIQUE KEY uq_favoritos_usuario_complejo (id_usuario, id_complejo),
+      CONSTRAINT fk_favoritos_complejo FOREIGN KEY (id_complejo) REFERENCES complejos(id_complejo) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  try {
+    const [columns] = await connection.query(
+      "SHOW COLUMNS FROM favoritos LIKE 'id_cancha'",
+    );
+    if (Array.isArray(columns) && columns.length > 0) {
+      await connection.query(
+        "ALTER TABLE favoritos DROP FOREIGN KEY fk_favoritos_cancha",
+      );
+      await connection.query(
+        "ALTER TABLE favoritos DROP INDEX uq_favoritos_usuario_cancha",
+      );
+      await connection.query("ALTER TABLE favoritos DROP COLUMN id_cancha");
+    }
+  } catch (error) {
+    console.warn(
+      "No fue necesario migrar la tabla favoritos:",
+      error.message || error,
+    );
+  }
+
+  try {
+    await connection.query(
+      "ALTER TABLE favoritos ADD UNIQUE INDEX uq_favoritos_usuario_complejo (id_usuario, id_complejo)",
+    );
+  } catch (error) {
+    if (!String(error.message || error).includes("Duplicate key name")) {
+      console.warn(
+        "No se pudo asegurar el índice único de favoritos:",
+        error.message || error,
+      );
+    }
+  }
 }
 
 app.get("/api/health", (_req, res) => {
@@ -128,9 +178,29 @@ app.post(
   async (req, res) => {
     try {
       const userId = Number(req.body?.userId || 0);
-      const imageUrl = req.file?.path || req.file?.secure_url || null;
+      const uploadedFile = req.file;
+      const normalizeRemoteUrl = (value) =>
+        String(value || "")
+          .trim()
+          .replace(/\\/g, "/")
+          .replace(/https:\/(?!\/)/gi, "https://")
+          .replace(/http:\/(?!\/)/gi, "http://");
 
-      if (!userId || !imageUrl) {
+      const remoteCandidate = normalizeRemoteUrl(
+        uploadedFile?.secure_url || uploadedFile?.url || uploadedFile?.path,
+      );
+      const hasRemoteUrl = /^https?:\/\//i.test(remoteCandidate);
+
+      const localFilePath =
+        uploadedFile?.path && !hasRemoteUrl
+          ? `${req.protocol}://${req.get("host")}/${path
+              .relative(__dirname, String(uploadedFile.path))
+              .replace(/\\/g, "/")}`
+          : null;
+
+      const publicImageUrl = hasRemoteUrl ? remoteCandidate : localFilePath;
+
+      if (!userId || !publicImageUrl) {
         return res.status(400).json({
           ok: false,
           message: "Debe enviar la foto y el id del usuario.",
@@ -146,12 +216,12 @@ app.post(
 
       await connection.query(
         "UPDATE deportistas SET foto_perfil = ? WHERE id_deportista = ?",
-        [imageUrl, userId],
+        [publicImageUrl, userId],
       );
 
       return res.json({
         ok: true,
-        imageUrl,
+        imageUrl: publicImageUrl,
         message: "Foto de perfil actualizada correctamente.",
       });
     } catch (error) {
@@ -179,13 +249,18 @@ app.get("/api/favoritos", async (req, res) => {
     await ensureFavoritesTable(connection);
 
     const [rows] = await connection.query(
-      "SELECT id_cancha FROM favoritos WHERE id_usuario = ? ORDER BY id_favorito DESC",
+      `SELECT DISTINCT f.id_complejo
+       FROM favoritos f
+       WHERE f.id_usuario = ?
+       ORDER BY f.id_complejo DESC`,
       [idUsuario],
     );
 
     return res.json({
       ok: true,
-      favoritos: rows.map((item) => Number(item.id_cancha)),
+      favoritos: rows
+        .map((item) => Number(item.id_complejo))
+        .filter((value) => Number.isFinite(value) && value > 0),
     });
   } catch (error) {
     console.error("Error al consultar favoritos:", error);
@@ -213,14 +288,28 @@ app.get("/api/favoritos/detalle", async (req, res) => {
     const [rows] = await connection.query(
       `SELECT
          c.id_cancha,
+         f.id_complejo,
+         co.nombre_complejo,
          c.nombre_cancha,
-         c.direccion_cancha,
+         co.direccion AS direccion_cancha,
          c.precio,
          c.superficie,
-         c.capacidad,
-         c.valoracion,
-         c.latitud,
-         c.longitud,
+         NULL AS capacidad,
+         COALESCE(
+           (
+             SELECT GROUP_CONCAT(
+               CONCAT(hc.dia_semana, '-', hc.hora_apertura, 'a', hc.hora_cierre)
+               SEPARATOR ';'
+             )
+             FROM horarios_cancha hc
+             INNER JOIN canchas hc_cancha ON hc_cancha.id_cancha = hc.id_cancha
+             WHERE hc_cancha.id_complejo = f.id_complejo
+           ),
+           ''
+         ) AS horario,
+         co.valoracion,
+         co.latitud,
+         co.longitud,
          COALESCE(
            (
              SELECT ic.url_imagen
@@ -233,8 +322,16 @@ app.get("/api/favoritos/detalle", async (req, res) => {
          ) AS imagen_url,
          f.fecha_agregado
        FROM favoritos f
-       INNER JOIN canchas c ON c.id_cancha = f.id_cancha
+       INNER JOIN complejos co ON co.id_complejo = f.id_complejo
+       INNER JOIN canchas c ON c.id_complejo = f.id_complejo
        WHERE f.id_usuario = ?
+         AND c.id_cancha = (
+           SELECT ic.id_cancha
+           FROM canchas ic
+           WHERE ic.id_complejo = f.id_complejo
+           ORDER BY ic.id_cancha
+           LIMIT 1
+         )
        ORDER BY f.fecha_agregado DESC`,
       [idUsuario],
     );
@@ -288,7 +385,8 @@ app.get("/api/reservas/usuario/:id_deportista", async (req, res) => {
          r.estado,
          r.fecha_creacion,
          c.nombre_cancha,
-         c.direccion_cancha,
+         co.nombre_complejo,
+         co.direccion AS direccion_cancha,
          COALESCE(
            (
              SELECT ic.url_imagen
@@ -301,6 +399,7 @@ app.get("/api/reservas/usuario/:id_deportista", async (req, res) => {
          ) AS imagen_url
        FROM reservas r
        INNER JOIN canchas c ON c.id_cancha = r.id_cancha
+       INNER JOIN complejos co ON co.id_complejo = c.id_complejo
        WHERE r.id_deportista = ?
        ORDER BY r.fecha DESC, r.hora_inicio ASC`,
       [idDeportista],
@@ -332,12 +431,12 @@ app.get("/api/reservas/usuario/:id_deportista", async (req, res) => {
 
 app.post("/api/favoritos/toggle", async (req, res) => {
   try {
-    const { id_usuario, id_cancha } = req.body || {};
+    const { id_usuario, id_complejo } = req.body || {};
 
-    if (!id_usuario || !id_cancha) {
+    if (!id_usuario) {
       return res.status(400).json({
         ok: false,
-        message: "Debe enviar id_usuario e id_cancha.",
+        message: "Debe enviar id_usuario.",
       });
     }
 
@@ -345,35 +444,47 @@ app.post("/api/favoritos/toggle", async (req, res) => {
     await ensureFavoritesTable(connection);
 
     const usuarioId = Number(id_usuario);
-    const canchaId = Number(id_cancha);
+    const complejoId = Number(id_complejo || 0);
+
+    if (!usuarioId || !complejoId) {
+      return res.status(400).json({
+        ok: false,
+        message: "Debe enviar id_usuario e id_complejo válidos.",
+      });
+    }
 
     const [existingRows] = await connection.query(
-      "SELECT id_favorito FROM favoritos WHERE id_usuario = ? AND id_cancha = ? LIMIT 1",
-      [usuarioId, canchaId],
+      `SELECT id_favorito FROM favoritos
+       WHERE id_usuario = ?
+         AND id_complejo = ?
+       LIMIT 1`,
+      [usuarioId, complejoId],
     );
 
     if (existingRows.length > 0) {
       await connection.query(
-        "DELETE FROM favoritos WHERE id_usuario = ? AND id_cancha = ?",
-        [usuarioId, canchaId],
+        `DELETE FROM favoritos
+         WHERE id_usuario = ?
+           AND id_complejo = ?`,
+        [usuarioId, complejoId],
       );
 
       return res.json({
         ok: true,
         isFavorite: false,
-        message: "Cancha removida de favoritos.",
+        message: "Complejo removido de favoritos.",
       });
     }
 
     await connection.query(
-      "INSERT INTO favoritos (id_usuario, id_cancha) VALUES (?, ?)",
-      [usuarioId, canchaId],
+      "INSERT INTO favoritos (id_usuario, id_complejo) VALUES (?, ?)",
+      [usuarioId, complejoId],
     );
 
     return res.json({
       ok: true,
       isFavorite: true,
-      message: "Cancha agregada a favoritos.",
+      message: "Complejo agregado a favoritos.",
     });
   } catch (error) {
     console.error("Error al alternar favoritos:", error);
@@ -384,21 +495,31 @@ app.post("/api/favoritos/toggle", async (req, res) => {
   }
 });
 
-app.get("/api/canchas", async (req, res) => {
+app.get("/api/canchas/complejo/:id_complejo", async (req, res) => {
   try {
     const connection = await getPool();
+    const idComplejo = Number(req.params.id_complejo || 0);
+
+    if (!idComplejo) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de complejo inválido." });
+    }
+
     const [rows] = await connection.query(
       `SELECT
          c.id_cancha,
-         c.id_gerente,
+         c.id_complejo,
          c.nombre_cancha,
-         c.direccion_cancha,
-         c.valoracion,
-         c.latitud,
-         c.longitud,
+         c.tipo_cancha,
          c.precio,
          c.superficie,
-         c.capacidad,
+         c.estado,
+         co.nombre_complejo,
+         co.descripcion,
+         co.direccion,
+         co.valoracion,
+         co.id_usuario AS id_gerente,
          COALESCE(
            (
              SELECT ic.url_imagen
@@ -408,14 +529,360 @@ app.get("/api/canchas", async (req, res) => {
              LIMIT 1
            ),
            ''
-         ) AS imagen_url,
-         GROUP_CONCAT(
-           CONCAT(h.dia_semana, ' ', TIME_FORMAT(h.hora_apertura, '%H:%i'), ' - ', TIME_FORMAT(h.hora_cierre, '%H:%i'))
-           SEPARATOR '; '
-         ) AS horario
+         ) AS imagen_url
        FROM canchas c
-       LEFT JOIN horarios_cancha h ON h.id_cancha = c.id_cancha
-       GROUP BY c.id_cancha
+       INNER JOIN complejos co ON co.id_complejo = c.id_complejo
+       WHERE c.id_complejo = ?
+       ORDER BY c.id_cancha ASC`,
+      [idComplejo],
+    );
+
+    return res.json({ ok: true, complejo: rows[0] || null, canchas: rows });
+  } catch (error) {
+    console.error("Error en /api/canchas/complejo/:id_complejo:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudo cargar el complejo." });
+  }
+});
+
+app.get("/api/horarios/cancha/:id_cancha", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const idCancha = Number(req.params.id_cancha || 0);
+
+    if (!idCancha) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de cancha inválido." });
+    }
+
+    const [rows] = await connection.query(
+      `SELECT id_horario, id_cancha, dia_semana, hora_apertura, hora_cierre
+       FROM horarios_cancha
+       WHERE id_cancha = ?
+       ORDER BY FIELD(dia_semana, 'lunes','martes','miercoles','jueves','viernes','sabado','domingo')`,
+      [idCancha],
+    );
+
+    return res.json({ ok: true, horarios: rows });
+  } catch (error) {
+    console.error("Error en /api/horarios/cancha/:id_cancha:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudieron cargar los horarios." });
+  }
+});
+
+app.patch("/api/complejos/:id_complejo", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const idComplejo = Number(req.params.id_complejo || 0);
+    const { nombre_complejo, descripcion, direccion, valoracion } =
+      req.body || {};
+
+    if (!idComplejo) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de complejo inválido." });
+    }
+
+    await connection.query(
+      `UPDATE complejos
+       SET nombre_complejo = COALESCE(?, nombre_complejo),
+           descripcion = COALESCE(?, descripcion),
+           direccion = COALESCE(?, direccion),
+           valoracion = COALESCE(?, valoracion)
+       WHERE id_complejo = ?`,
+      [
+        nombre_complejo ?? null,
+        descripcion ?? null,
+        direccion ?? null,
+        valoracion ?? null,
+        idComplejo,
+      ],
+    );
+
+    return res.json({
+      ok: true,
+      message: "Complejo actualizado correctamente.",
+    });
+  } catch (error) {
+    console.error("Error en PATCH /api/complejos/:id_complejo:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudo actualizar el complejo." });
+  }
+});
+
+app.post("/api/canchas", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const {
+      id_complejo,
+      nombre_cancha,
+      tipo_cancha,
+      precio,
+      superficie,
+      estado,
+    } = req.body || {};
+
+    const complejoId = Number(id_complejo || 0);
+
+    if (!complejoId) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de complejo inválido." });
+    }
+
+    const [result] = await connection.query(
+      `INSERT INTO canchas (id_complejo, nombre_cancha, tipo_cancha, precio, superficie, estado)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        complejoId,
+        nombre_cancha || "Cancha nueva",
+        tipo_cancha || "Futbol 5",
+        Number(precio || 0),
+        superficie || null,
+        estado || "Disponible",
+      ],
+    );
+
+    const [rows] = await connection.query(
+      `SELECT id_cancha, id_complejo, nombre_cancha, tipo_cancha, precio, superficie, estado
+       FROM canchas
+       WHERE id_cancha = ?`,
+      [result.insertId],
+    );
+
+    return res.json({ ok: true, cancha: rows[0] || null });
+  } catch (error) {
+    console.error("Error en POST /api/canchas:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudo crear la cancha." });
+  }
+});
+
+app.delete("/api/canchas/:id_cancha", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const idCancha = Number(req.params.id_cancha || 0);
+
+    if (!idCancha) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de cancha inválido." });
+    }
+
+    await connection.query("DELETE FROM horarios_cancha WHERE id_cancha = ?", [
+      idCancha,
+    ]);
+    await connection.query("DELETE FROM canchas WHERE id_cancha = ?", [
+      idCancha,
+    ]);
+
+    return res.json({ ok: true, message: "Cancha eliminada correctamente." });
+  } catch (error) {
+    console.error("Error en DELETE /api/canchas/:id_cancha:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudo eliminar la cancha." });
+  }
+});
+
+app.patch("/api/canchas/:id_cancha", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const idCancha = Number(req.params.id_cancha || 0);
+    const { nombre_cancha, tipo_cancha, precio, superficie, estado } =
+      req.body || {};
+
+    if (!idCancha) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de cancha inválido." });
+    }
+
+    await connection.query(
+      `UPDATE canchas
+       SET nombre_cancha = COALESCE(?, nombre_cancha),
+           tipo_cancha = COALESCE(?, tipo_cancha),
+           precio = COALESCE(?, precio),
+           superficie = COALESCE(?, superficie),
+           estado = COALESCE(?, estado)
+       WHERE id_cancha = ?`,
+      [
+        nombre_cancha ?? null,
+        tipo_cancha ?? null,
+        precio ?? null,
+        superficie ?? null,
+        estado ?? null,
+        idCancha,
+      ],
+    );
+
+    return res.json({ ok: true, message: "Cancha actualizada correctamente." });
+  } catch (error) {
+    console.error("Error en PATCH /api/canchas/:id_cancha:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudo actualizar la cancha." });
+  }
+});
+
+app.put("/api/horarios/cancha/:id_cancha", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const idCancha = Number(req.params.id_cancha || 0);
+    const horarios = Array.isArray(req.body?.horarios) ? req.body.horarios : [];
+
+    if (!idCancha) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "ID de cancha inválido." });
+    }
+
+    await connection.query("DELETE FROM horarios_cancha WHERE id_cancha = ?", [
+      idCancha,
+    ]);
+
+    if (horarios.length > 0) {
+      await Promise.all(
+        horarios.map((item) =>
+          connection.query(
+            "INSERT INTO horarios_cancha (id_cancha, dia_semana, hora_apertura, hora_cierre) VALUES (?, ?, ?, ?)",
+            [
+              idCancha,
+              item.dia_semana,
+              item.hora_apertura || "08:00:00",
+              item.hora_cierre || "20:00:00",
+            ],
+          ),
+        ),
+      );
+    }
+
+    return res.json({
+      ok: true,
+      message: "Horarios actualizados correctamente.",
+    });
+  } catch (error) {
+    console.error("Error en PUT /api/horarios/cancha/:id_cancha:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "No se pudieron actualizar los horarios." });
+  }
+});
+
+app.post(
+  "/api/imagenes-cancha/:id_cancha",
+  upload.single("photo"),
+  async (req, res) => {
+    try {
+      const connection = await getPool();
+      const idCancha = Number(req.params.id_cancha || 0);
+      const uploadedFile = req.file;
+      const { url_imagen } = req.body || {};
+
+      const normalizeRemoteUrl = (value) =>
+        String(value || "")
+          .trim()
+          .replace(/\\/g, "/")
+          .replace(/https:\/\/(?!\/)/gi, "https://")
+          .replace(/http:\/\/(?!\/)/gi, "http://");
+
+      const remoteCandidate = normalizeRemoteUrl(
+        uploadedFile?.secure_url ||
+          uploadedFile?.url ||
+          uploadedFile?.path ||
+          url_imagen,
+      );
+      const hasRemoteUrl = /^https?:\/\//i.test(remoteCandidate);
+
+      const localFilePath =
+        uploadedFile?.path && !hasRemoteUrl
+          ? `${req.protocol}://${req.get("host")}/${path
+              .relative(__dirname, String(uploadedFile.path))
+              .replace(/\\/g, "/")}`
+          : null;
+
+      const publicImageUrl = hasRemoteUrl ? remoteCandidate : localFilePath;
+
+      if (!idCancha || !publicImageUrl) {
+        return res.status(400).json({
+          ok: false,
+          message: "Faltan datos para subir la imagen de la cancha.",
+        });
+      }
+
+      await connection.query(
+        "DELETE FROM imagenes_cancha WHERE id_cancha = ?",
+        [idCancha],
+      );
+      await connection.query(
+        "INSERT INTO imagenes_cancha (id_cancha, url_imagen, descripcion, fecha_subida) VALUES (?, ?, ?, NOW())",
+        [idCancha, publicImageUrl, "Foto subida desde la galería"],
+      );
+
+      return res.json({
+        ok: true,
+        imageUrl: publicImageUrl,
+        message: "Imagen actualizada correctamente.",
+      });
+    } catch (error) {
+      console.error("Error en POST /api/imagenes-cancha/:id_cancha:", error);
+      return res
+        .status(500)
+        .json({ ok: false, message: "No se pudo actualizar la imagen." });
+    }
+  },
+);
+
+app.get("/api/canchas", async (req, res) => {
+  try {
+    const connection = await getPool();
+    const [rows] = await connection.query(
+      `SELECT
+         c.id_cancha,
+         c.id_complejo,
+         co.id_usuario AS id_gerente,
+         co.nombre_complejo,
+         c.nombre_cancha,
+         co.direccion AS direccion_cancha,
+         co.descripcion AS descripcion_complejo,
+         co.valoracion,
+         COALESCE(co.latitud, 0) AS latitud,
+         COALESCE(co.longitud, 0) AS longitud,
+         c.precio,
+         c.superficie,
+         c.tipo_cancha,
+         c.estado,
+         NULL AS capacidad,
+         COALESCE(
+           (
+             SELECT GROUP_CONCAT(
+               CONCAT(hc.dia_semana, '-', hc.hora_apertura, 'a', hc.hora_cierre)
+               SEPARATOR ';'
+             )
+             FROM horarios_cancha hc
+             WHERE hc.id_cancha = c.id_cancha
+           ),
+           ''
+         ) AS horario,
+         COALESCE(
+           (
+             SELECT ic.url_imagen
+             FROM imagenes_cancha ic
+             WHERE ic.id_cancha = c.id_cancha
+             ORDER BY ic.id_imagen
+             LIMIT 1
+           ),
+           ''
+         ) AS imagen_url
+       FROM canchas c
+       INNER JOIN complejos co ON co.id_complejo = c.id_complejo
+       WHERE c.estado = 'Disponible'
        ORDER BY c.id_cancha ASC`,
     );
 
@@ -423,9 +890,22 @@ app.get("/api/canchas", async (req, res) => {
 
     const canchas = rows.map((field) => {
       const imagenUrl = field.imagen_url;
+      const description = String(
+        field.descripcion_complejo || "",
+      ).toLowerCase();
+      const servicios = [
+        "parqueadero",
+        "vestidores",
+        "baños",
+        "cafeteria",
+        "tienda",
+      ]
+        .filter((item) => description.includes(item))
+        .join(", ");
 
       return {
         ...field,
+        servicios,
         imagen_url:
           imagenUrl && !/^https?:\/\//i.test(imagenUrl)
             ? `${baseUrl}${imagenUrl.startsWith("/") ? imagenUrl : `/${imagenUrl}`}`

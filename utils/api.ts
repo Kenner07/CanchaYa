@@ -48,11 +48,11 @@ export const getApiBaseUrl = () => {
   }
 
   if (Platform.OS === "android") {
-    return `http://10.0.2.2:${API_PORT}`;
+    return `http://192.168.20.21:${API_PORT}`;
   }
 
   if (Platform.OS === "ios") {
-    return `http://localhost:${API_PORT}`;
+    return `http://192.168.20.21:${API_PORT}`;
   }
 
   return `http://localhost:${API_PORT}`;
@@ -61,12 +61,22 @@ export const getApiBaseUrl = () => {
 export const resolveImageUrl = (value?: string | null) => {
   if (!value) return null;
 
-  if (/^https?:\/\//i.test(value)) return value;
+  const normalized = String(value).trim().replace(/\\/g, "/");
 
-  if (value.startsWith("data:")) return value;
+  const malformedPrefix = normalized.match(
+    /^(https?:\/\/[^/]+)\/(https?:\/\/.+)$/i,
+  );
+
+  if (malformedPrefix) {
+    return malformedPrefix[2];
+  }
+
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+
+  if (normalized.startsWith("data:")) return normalized;
 
   const baseUrl = getApiBaseUrl();
-  return `${baseUrl}${value.startsWith("/") ? value : `/${value}`}`;
+  return `${baseUrl}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
 };
 
 export const getApiBaseCandidates = () => {
